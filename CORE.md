@@ -7,6 +7,11 @@ Read this file at the start of every task. Each heading links to the file that
 explains its rules. Rules under a module that $MODULES does not enable do not
 apply.
 
+Rules marked [GATE] guard the named action. They apply in every mode, within the
+scope of the task the user authorized, and they never turn a smoke test into
+exhaustive validation. The other rules are standing preferences: when one
+collides with a task's mechanics, work the mechanics out instead of stopping.
+
 ## [When editing kernel-agent-workflows](CONTRIBUTING.md)
 
 - kernel-agent-workflows is generic, because it is public: no names of people,
@@ -19,3 +24,93 @@ apply.
 - In kernel-agent-workflows, state each rule in exactly one module and link to
   it from elsewhere, so that a change lands in one place
   ([details](CONTRIBUTING.md#modules)).
+
+## [core/evidence-discipline](core/evidence-discipline.md)
+
+- A claim is either proven with evidence or reported as unknown, with more data
+  gathered when the task needs the cause. Never fill the gap with a plausible
+  story, even one that later turns out right, because a theory stated as the
+  answer gets built into designs and patches.
+- A root cause must fit every constraint of the report before it is called the
+  cause, because a cause that misses one explains a different bug and is only a
+  finding.
+- Copy identifiers from their source: message IDs, URLs, commit IDs, and
+  function and API names. When one can't be checked, describe the mechanism in
+  general terms instead, because a reconstructed identifier is often subtly
+  wrong and sends the reader to the wrong place.
+
+## [core/safe-operations](core/safe-operations.md)
+
+- [GATE] Before a destructive or forced operation: look at the target, find out
+  why the normal operation failed, and get the user's approval, because forced
+  and destructive operations discard state that can't be recovered.
+- Never re-run a state-changing command to inspect its result, because it acts
+  again: a send sends again and a push pushes again. Inspect the resulting state
+  instead.
+- Never build, test or experiment in $PUBLICATION_TREES, because the user
+  publishes from them and may be working in them live.
+- Ask before every command that runs as root, showing the exact command, even
+  when the request implies it, except on $ROOT_OK_HOSTS, because a privileged
+  mistake on a shared machine can't be undone.
+- Keep working files under $SCRATCH, never in /tmp or a per-session directory,
+  because a remount or the end of a session loses them.
+
+## [core/stop-and-ask](core/stop-and-ask.md)
+
+- Solve mechanics and stop only for genuine blockers, because asking about a
+  solvable problem wastes the user's time and guessing past a blocker does
+  damage.
+- When stopping, never hide the problem by skipping, narrowing or forcing a
+  step, because the user decides what to do next from what actually failed.
+
+## [core/validation-scope](core/validation-scope.md)
+
+- Size validation to the decision it supports: choose the coverage, the
+  confidence and an effort budget before starting, because checks grown without
+  a target turn into a separate project.
+- Verify a feature with the quickest adequate check. Existing tests, small
+  scripts and temporary probes are fine, because framework integration and
+  submission-ready tests are separate work that the user asks for.
+
+## [core/waits-and-long-ops](core/waits-and-long-ops.md)
+
+- Run long operations one at a time and verify each before starting the next,
+  because a second operation started on a failed one wastes its run and hides
+  the failure.
+- Every wait has a deadline and checks progress against ground truth, never
+  against what the job or sub-agent reports about itself, because a stuck job
+  and a slow one look the same from outside.
+- Read the output of every background command and confirm that it succeeded
+  before going on, because a silent failure looks like silent success.
+
+## [review/formal-model-check](review/formal-model-check.md)
+
+- With `$FORMAL_MODEL` on, every multi-actor shared-state protocol a patchset
+  adds or changes gets a model check, because reading misses rare interleavings.
+- [GATE] Before trusting a model result: it failed a falsification run and its
+  traces replay on the C, because a weak model passes and a wrong one fails.
+
+## [debug/bug-report-triage](debug/bug-report-triage.md)
+
+- Code inspection alone never confirms a reported bug. Every fix needs a runtime
+  signal that fires before it and is gone after it, because a report can quote
+  the right code and still rest on one misread line.
+- Reproduce a race by widening its window, never by forcing a state the real
+  code never produces, because a forced state proves only the forcing.
+- Triage a batch one finding at a time, with the user confirming each verdict,
+  because a reproducer and fix built on an unconfirmed verdict are wasted when
+  the verdict is wrong.
+- [GATE] Before posting a fix patchset from a triage: record each patch's
+  reproducer tier in the verification table, because reviewers rely on it.
+
+## [debug/event-tracing](debug/event-tracing.md)
+
+- When kernel behavior needs a causal answer, add probes and read the data
+  instead of reasoning from incomplete data, because a probe round takes
+  minutes.
+- Keep debug probes, trace rings and triggers in a separate debug commit that is
+  never posted or merged, because they are temporary.
+- [GATE] Before trusting probe data: confirm that each probe exists in the
+  running kernel and sees its arguments, that no output waits for program exit,
+  and that ring writers can't collide, because each failure loses or corrupts
+  data without an error.

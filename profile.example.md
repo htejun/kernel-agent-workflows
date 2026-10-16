@@ -29,6 +29,28 @@ Parameters of modules you don't enable can stay unset even when required.
 - `$ALIASES`: default none. Short names for modules, such as
   `review = review/patchset-review`.
 
+## Paths and machines
+
+- `$SCRATCH`: required. Directory for working files such as drafts,
+  mailboxes and logs, with a subdirectory per topic, such as
+  `~/scratch/<topic>/`.
+- `$WORKTREE_ROOT`: required. Directory where a task the user hands off gets
+  its own git worktree, such as `~/src`.
+- `$PUBLICATION_TREES`: default none. The clones the user publishes from,
+  such as the ones that applied patches and pull requests go out of.
+- `$ROOT_OK_HOSTS`: default none. Dedicated test machines and VMs where the
+  agent may run commands as root without asking for each one.
+- `$PLAN_DIR`: default `PLAN/`. Directory, relative to the working tree,
+  for plans, research notes and models that go with a piece of work.
+
+## Review
+
+- `$FORMAL_MODEL`: default `off`. `on` makes patchset review check each
+  multi-actor protocol over shared state with a TLA+ model. Needs Java and
+  the TLA+ tools.
+- `$MODEL_CHECK_HOST`: default `local`. Where long model-checking runs go:
+  `local`, or a host from `$ROOT_OK_HOSTS` with more cores and memory.
+
 ## Role and patch management
 
 - `$ROLE`: default `contributor`. `contributor` or `maintainer`. A maintainer

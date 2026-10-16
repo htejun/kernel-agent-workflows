@@ -211,9 +211,13 @@ def check_identity(ident, where, deny):
 
 
 def scan_files(paths, deny):
-    if not paths:
+    """Scan absolute paths. Names inside the repository are scanned and shown
+    relative to it, since the location of the clone is not part of it."""
+    top, explicit = os.getcwd(), bool(paths)
+    if not explicit:
+        # tracked files deleted from the working tree are skipped below
         out = git('ls-files', '-co', '--exclude-standard', '-z').decode()
-        paths = [p for p in out.split('\0') if p and os.path.isfile(p)]
+        paths = [os.path.join(top, p) for p in out.split('\0') if p]
     files = []
     for path in paths:
         if os.path.isdir(path):
@@ -222,12 +226,13 @@ def scan_files(paths, deny):
                 files += [os.path.join(d, n) for n in names]
         elif os.path.isfile(path):
             files.append(path)
-        else:
+        elif explicit:
             fail(f'{path}: no such file or directory')
     for path in files:
-        scan_path(path, deny)
+        name = os.path.relpath(path, top) if path.startswith(top + os.sep) else path
+        scan_path(name, deny)
         with open(path, 'rb') as f:
-            scan_blob(f.read(), path, deny)
+            scan_blob(f.read(), name, deny)
 
 
 def scan_staged(deny):

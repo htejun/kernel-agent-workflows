@@ -80,7 +80,12 @@ mail. TEMPLATE.md is the skeleton.
   - Customization: what profile parameters and overlays usually change.
 - A module needs a Procedure or a Reference section.
 - State a rule once, in the module that owns the action. Elsewhere, link to
-  that module's section with a relative link.
+  that module's section with a relative link of the form
+  `../<area>/<module>.md#<section>`, even from the same area, so that links
+  read the same everywhere.
+- Until a module exists, name it in plain text, such as
+  `review/patchset-review`. `tools/check-modules --strict` reports such
+  names, and the published repository passes it.
 - Modules don't assume a patch-management tool. Developers use plain git,
   stacked git, quilt and others. Modules describe patch work with git
   commits and branches. Steps for one tool go in that tool's opt-in area,
@@ -102,6 +107,9 @@ required, and a description. Users set their own values in their profile.
 - Plain sentences, one fact each, with the actor named. Each rule carries its
   reason in a sentence.
 - Imperative mood for steps.
+- One word for each thing: CPU and per-CPU, patchset, post (not submit),
+  test machine, and gate only for a [GATE] rule. A check the kernel runs,
+  such as a WARN, is a validation check.
 - No history in module text: no dates, no rule tags, no "used to". Git log
   and UPGRADING.md hold history.
 - ASCII only, no tabs, no trailing whitespace. Prose fills to 80 columns and
