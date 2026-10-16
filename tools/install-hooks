@@ -1,0 +1,69 @@
+#!/bin/bash
+#
+# install-hooks - install the git hooks that run check-leaks and
+# check-modules in this clone.
+#
+# usage: tools/install-hooks
+#
+# pre-commit   check-leaks on the staged content and the commit identity,
+#              check-modules on the staged content
+# commit-msg   check-leaks on the commit message
+# pre-push     check-leaks on every commit and tag being pushed
+#
+# The hooks go into this clone's own hooks directory, never a shared one.
+# When core.hooksPath points elsewhere, for example at a global hooks
+# directory, this clone's local core.hooksPath is set to its own directory,
+# and hooks from the other directory no longer run in this clone.
+# A hook this script did not write is never replaced. Commits made by git am,
+# rebase, cherry-pick or merge skip pre-commit; pre-push still scans them.
+
+set -euo pipefail
+
+# work on this script's repository wherever it is run from
+cd "$(dirname "$(readlink -f "$0")")"
+cd "$(git rev-parse --show-toplevel)"
+
+marker='# installed by kernel-agent-workflows tools/install-hooks'
+hooks="$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
+current="$(git rev-parse --path-format=absolute --git-path hooks)"
+failed=0
+mkdir -p "$hooks"
+
+if [ "$current" != "$hooks" ]; then
+	git config --local core.hooksPath "$hooks"
+	echo "set this clone's core.hooksPath to $hooks;" \
+		"hooks in $current no longer run here"
+fi
+
+write_hook() {
+	local name=$1 body=$2 path="$hooks/$1"
+	if [ -e "$path" ] && ! grep -qxF "$marker" "$path"; then
+		echo "install-hooks: $path exists and was not written by this script," \
+			"leaving it alone" >&2
+		failed=1
+		return
+	fi
+	printf '#!/bin/bash\n%s\nset -eu\ncd "$(git rev-parse --show-toplevel)"\n%s\n' \
+		"$marker" "$body" > "$path"
+	chmod +x "$path"
+	echo "installed $path"
+}
+
+write_hook pre-commit 'tools/check-leaks --staged
+tools/check-modules --index'
+
+write_hook commit-msg 'tools/check-leaks --message "$1"'
+
+# A ref the remote has but this clone never fetched can't bound the range, so
+# scan everything not on the remote's tracking branches instead.
+write_hook pre-push 'zero=$(git hash-object --stdin </dev/null | tr 0-9a-f 0)
+while read -r lref lsha rref rsha; do
+	[ "$lsha" = "$zero" ] && continue
+	if [ "$rsha" != "$zero" ] && git cat-file -e "$rsha^{commit}" 2>/dev/null; then
+		tools/check-leaks --commits "$rsha..$lsha"
+	else
+		tools/check-leaks --commits "$lsha" --not --remotes="$1"
+	fi
+done'
+
+exit $failed

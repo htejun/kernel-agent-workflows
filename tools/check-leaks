@@ -1,0 +1,351 @@
+#!/usr/bin/env python3
+"""check-leaks - keep personal and confidential information out of this
+repository.
+
+Scans text for built-in patterns (personal email addresses, IP and MAC
+addresses, home directory paths, key files, credential-shaped strings,
+dates, phone numbers) and for the entries of a private deny-list kept
+outside the repository. File paths are scanned along with file contents.
+Files that are not text are reported, since they can't be scanned.
+
+usage:
+  check-leaks [PATH...]           scan files or directories (default: every
+                                  file git tracks or would track)
+  check-leaks --staged            scan the staged content and the identity
+                                  the next commit will carry
+  check-leaks --message FILE      scan a commit message file
+  check-leaks --commits REV...    scan the messages, identities, file names
+                                  and file contents of the commits, and the
+                                  annotated tags, that git rev-list selects
+                                  with REV...
+  check-leaks --history           --commits over every ref
+
+configuration (git config):
+  kaw.denylist PATH   deny-list file, kept outside the repository. One entry
+                      per line. A plain entry matches case-insensitively as
+                      whole words, where letters and digits are word
+                      characters and "_" is not, and its spaces match any
+                      whitespace including line breaks. An entry starting
+                      with "re:" is a case-sensitive Python regular
+                      expression. Lines starting with "#" are comments.
+  kaw.identity ID     "Name <address>". When set, the author and committer
+                      of every scanned commit, and the tagger of every
+                      scanned tag, must equal it.
+
+An identity is checked against kaw.identity and the deny-list only: the
+addresses contributors commit under are public by their choice.
+
+Exit status is 1 when anything is found, 2 on usage or setup errors.
+"""
+
+import os
+import re
+import subprocess
+import sys
+
+EXAMPLE_DOMAINS = ('example.com', 'example.org', 'example.net')
+LIST_DOMAINS = ('vger.kernel.org', 'lists.linux.dev', 'kvack.org')
+ALLOWED_ADDRS = ('lkp@intel.com', 'git@github.com')
+SPECIAL_IPS = ('127.0.0.1', '0.0.0.0')
+DOC_NETS = ('192.0.2.', '198.51.100.', '203.0.113.')
+
+# message-ids in archive links look like addresses; the deny-list still applies
+ARCHIVE_URL_RE = re.compile(r'https?://(?:lore\.kernel\.org|lkml\.kernel\.org'
+                            r'|patch\.msgid\.link)/\S+')
+URL_RE = re.compile(r'https?://\S+')
+EMAIL_RE = re.compile(r'([A-Za-z0-9._%+-]+)@((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,})')
+IP_RE = re.compile(r'(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?!\w|\.\d)')
+HEXCOLON_RE = re.compile(r'(?<![\w:])[0-9A-Fa-f:]*:[0-9A-Fa-f:]*:[0-9A-Fa-f:]*(?![\w:])')
+HOME_RE = re.compile(r'/home/[A-Za-z0-9_.-]+|/Users/[A-Za-z0-9_.-]+'
+                     r'|(?<![\w/~])~[A-Za-z_][A-Za-z0-9_.-]*/')
+KEY_RE = re.compile(r'[.]ssh/(?!(?:config|known_hosts|authorized_keys)\b)[^\s`)]+'
+                    r'|\bid_(?:rsa|dsa|ecdsa|ed25519)(?:_sk)?\b'
+                    r'|-----BEGIN [A-Z ]*PRIVATE KEY[A-Z ]*-----')
+TOKEN_RE = re.compile(r'\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\w{20,}'
+                      r'|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}'
+                      r'|xox[abpr]-[A-Za-z0-9-]{10,})')
+LONG_RE = re.compile(r'(?<![A-Za-z0-9+/=_-])[A-Za-z0-9+/=_-]{32,}(?![A-Za-z0-9+/=_-])')
+MONTHS = r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?'
+DATE_RE = re.compile(r'(?<!\d)(?:19|20)\d\d-(?:0[1-9]|1[0-2])(?!\d)'
+                     rf'|\b{MONTHS} (?:\d{{1,2}}, )?(?:19|20)\d\d\b'
+                     rf'|\b\d{{1,2}} {MONTHS} (?:19|20)\d\d\b')
+PHONE_RE = re.compile(r'(?<![\w.-])(?:\+\d{1,3}[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}'
+                      r'(?![\w-]|\.\d)')
+SCISSORS_RE = re.compile(r'^. -+ >8 -+$')
+
+findings = []
+
+
+def fail(msg):
+    sys.stderr.write(f'check-leaks: {msg}\n')
+    sys.exit(2)
+
+
+def git(*args, data=None):
+    res = subprocess.run(['git', *args], input=data, capture_output=True)
+    if res.returncode:
+        fail(f'git {" ".join(args)}: {res.stderr.decode(errors="replace").strip()}')
+    return res.stdout
+
+
+def git_config(key):
+    res = subprocess.run(['git', 'config', '--get', key], capture_output=True, text=True)
+    return res.stdout.strip() if res.returncode == 0 else None
+
+
+def load_denylist():
+    path = git_config('kaw.denylist')
+    if path is None:
+        return []
+    path = os.path.expanduser(path)
+    if not os.path.isfile(path):
+        fail(f'kaw.denylist {path} does not exist')
+    entries = []
+    with open(path, encoding='utf-8') as f:
+        for n, line in enumerate(f, 1):
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if line.startswith('re:'):
+                try:
+                    entries.append(re.compile(line[3:]))
+                except re.error as e:
+                    fail(f'{path}:{n}: bad regex: {e}')
+            else:
+                words = r'\s+'.join(re.escape(w) for w in line.split())
+                entries.append(re.compile(r'(?<![A-Za-z0-9])' + words + r'(?![A-Za-z0-9])',
+                                          re.IGNORECASE))
+    return entries
+
+
+def allowed_email(local, domain):
+    domain = domain.lower()
+    if f'{local}@{domain}'.lower() in ALLOWED_ADDRS:
+        return True
+    if local.startswith('syzbot+') and domain == 'syzkaller.appspotmail.com':
+        return True
+    if domain.startswith('lists.') or domain.endswith(LIST_DOMAINS):
+        return True
+    if domain.endswith(('.example', '.invalid')):
+        return True
+    return any(domain == d or domain.endswith('.' + d) for d in EXAMPLE_DOMAINS)
+
+
+def allowed_ip(ip):
+    return ip in SPECIAL_IPS or ip.startswith(DOC_NETS)
+
+
+def network_address(token):
+    """Return true for an IPv6 or MAC address, false for times and C++ scopes."""
+    groups = token.split(':')
+    if not all(re.fullmatch(r'[0-9A-Fa-f]{0,4}', g) for g in groups):
+        return False
+    if token.lower().startswith(('2001:db8:', '::1')) or token.strip(':') == '':
+        return False
+    if '::' in token:
+        return sum(1 for g in groups if g) >= 2
+    return len(groups) >= 5
+
+
+def credential_shaped(token):
+    if re.fullmatch(r'[0-9a-fA-F]+', token):
+        return False
+    if '_' in token and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*(?:=\w)?', token):
+        return False   # an identifier or a config line such as CONFIG_FOO=y
+    has = lambda pred: any(pred(c) for c in token)
+    return has(str.isupper) and has(str.islower) and has(str.isdigit)
+
+
+def mask(regex, text):
+    return regex.sub(lambda m: ' ' * len(m.group(0)), text)
+
+
+def scan_text(text, where, deny):
+    hits = []
+    no_archive = mask(ARCHIVE_URL_RE, text)
+    no_url = mask(URL_RE, text)
+    for m in EMAIL_RE.finditer(no_archive):
+        if not allowed_email(m.group(1), m.group(2)):
+            hits.append((m.start(), 'email address', m.group(0)))
+    for m in IP_RE.finditer(text):
+        if not allowed_ip(m.group(0)):
+            hits.append((m.start(), 'IP address', m.group(0)))
+    for m in HEXCOLON_RE.finditer(no_url):
+        if network_address(m.group(0)):
+            hits.append((m.start(), 'IPv6 or MAC address', m.group(0)))
+    for regex, rule in ((HOME_RE, 'home path'), (KEY_RE, 'key file'),
+                        (TOKEN_RE, 'credential'), (DATE_RE, 'date'),
+                        (PHONE_RE, 'phone number')):
+        for m in regex.finditer(text):
+            hits.append((m.start(), rule, m.group(0)))
+    for m in LONG_RE.finditer(no_url):
+        if credential_shaped(m.group(0)):
+            hits.append((m.start(), 'credential-shaped string', m.group(0)))
+    for regex in deny:
+        for m in regex.finditer(text):
+            hits.append((m.start(), 'deny-list', ' '.join(m.group(0).split())))
+    for pos, rule, match in sorted(hits):
+        findings.append(f'{where}:{text.count(chr(10), 0, pos) + 1}: {rule}: {match}')
+
+
+def scan_path(path, deny, kind='file name'):
+    scan_text(path, f'{path} ({kind})', deny)
+
+
+def scan_blob(data, where, deny):
+    if b'\0' in data:
+        findings.append(f'{where}: not text, can\'t be scanned')
+        return
+    scan_text(data.decode('utf-8', errors='replace'), where, deny)
+
+
+def check_identity(ident, where, deny):
+    want = git_config('kaw.identity')
+    if want is not None:
+        if ident != want:
+            findings.append(f'{where}: identity "{ident}" is not kaw.identity "{want}"')
+        return
+    for regex in deny:
+        for m in regex.finditer(ident):
+            findings.append(f'{where}: deny-list in identity: {m.group(0)}')
+
+
+def scan_files(paths, deny):
+    if not paths:
+        out = git('ls-files', '-co', '--exclude-standard', '-z').decode()
+        paths = [p for p in out.split('\0') if p and os.path.isfile(p)]
+    files = []
+    for path in paths:
+        if os.path.isdir(path):
+            for d, subdirs, names in os.walk(path):
+                subdirs[:] = [s for s in subdirs if s != '.git']
+                files += [os.path.join(d, n) for n in names]
+        elif os.path.isfile(path):
+            files.append(path)
+        else:
+            fail(f'{path}: no such file or directory')
+    for path in files:
+        scan_path(path, deny)
+        with open(path, 'rb') as f:
+            scan_blob(f.read(), path, deny)
+
+
+def scan_staged(deny):
+    out = git('diff', '--cached', '--name-only', '--diff-filter=d', '-z').decode()
+    for path in [p for p in out.split('\0') if p]:
+        scan_path(path, deny)
+        mode = git('ls-files', '-s', '--', path).decode().split(' ', 1)[0]
+        if mode != '160000':
+            scan_blob(git('cat-file', 'blob', f':{path}'), f'{path} (staged)', deny)
+    for var in ('GIT_AUTHOR_IDENT', 'GIT_COMMITTER_IDENT'):
+        ident = re.sub(r' \d+ [+-]\d{4}$', '', git('var', var).decode().strip())
+        check_identity(ident, f'next commit {var}', deny)
+
+
+def scan_message(path, deny):
+    char = git_config('core.commentChar') or git_config('core.commentString') or '#'
+    if char == 'auto':
+        char = '#'
+    lines = []
+    with open(path, encoding='utf-8', errors='replace') as f:
+        for line in f:
+            if SCISSORS_RE.match(line.rstrip('\n')):
+                break
+            if not line.startswith(char):
+                lines.append(line)
+    scan_text(''.join(lines), 'commit message', deny)
+
+
+def read_batch(shas):
+    """Return {sha: bytes} for the given object ids via git cat-file --batch."""
+    if not shas:
+        return {}
+    data = git('cat-file', '--batch', data=('\n'.join(shas) + '\n').encode())
+    objs, pos = {}, 0
+    while pos < len(data):
+        end = data.index(b'\n', pos)
+        header = data[pos:end].decode().split()
+        if len(header) != 3:
+            pos = end + 1
+            continue
+        start = end + 1
+        objs[header[0]] = data[start:start + int(header[2])]
+        pos = start + int(header[2]) + 1
+    return objs
+
+
+def scan_commits(revs, deny):
+    log = git('log', '--format=%H%x00%an <%ae>%x00%cn <%ce>%x00%B%x01', *revs).decode()
+    for rec in log.split('\x01'):
+        rec = rec.strip('\n')
+        if not rec:
+            continue
+        sha, author, committer, msg = rec.split('\0', 3)
+        check_identity(author, f'{sha[:12]} author', deny)
+        check_identity(committer, f'{sha[:12]} committer', deny)
+        scan_text(msg, f'{sha[:12]} message', deny)
+
+    # every name a file had in these commits, renames and merges included
+    names = git('log', '--format=', '--name-only', '--no-renames', '-m', '--root',
+                *revs).decode()
+    for path in sorted({p for p in names.splitlines() if p}):
+        scan_path(path, deny, 'file name in history')
+
+    paths = {}
+    for line in git('rev-list', '--objects', *revs).decode().splitlines():
+        sha, _, path = line.partition(' ')
+        paths.setdefault(sha, path)
+    if not paths:
+        return
+    check = git('cat-file', '--batch-check=%(objectname) %(objecttype)',
+                data=('\n'.join(paths) + '\n').encode()).decode()
+    types = dict(l.split() for l in check.splitlines() if len(l.split()) == 2)
+    for sha, data in read_batch([s for s, t in types.items() if t == 'blob']).items():
+        scan_blob(data, f'{paths[sha] or "?"} (blob {sha[:12]})', deny)
+    for sha, data in read_batch([s for s, t in types.items() if t == 'tag']).items():
+        head, _, msg = data.decode('utf-8', errors='replace').partition('\n\n')
+        for line in head.splitlines():
+            if line.startswith('tagger '):
+                ident = re.sub(r' \d+ [+-]\d{4}$', '', line[7:])
+                check_identity(ident, f'tag {sha[:12]} tagger', deny)
+            elif line.startswith('tag '):
+                scan_path(line[4:], deny, f'tag {sha[:12]} name')
+        scan_text(msg, f'tag {sha[:12]} message', deny)
+
+
+def main():
+    args = sys.argv[1:]
+    if args and args[0] in ('-h', '--help'):
+        print(__doc__)
+        return 0
+    # work on this script's repository wherever it is run from
+    if not args or not args[0].startswith('--'):
+        args = [os.path.abspath(a) for a in args]
+    elif args[0] == '--message' and len(args) == 2:
+        args[1] = os.path.abspath(args[1])
+    here = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(git('-C', here, 'rev-parse', '--show-toplevel').decode().strip())
+    deny = load_denylist()
+    if not deny:
+        sys.stderr.write('check-leaks: no kaw.denylist configured, built-in patterns only\n')
+
+    if not args or not args[0].startswith('--'):
+        scan_files(args, deny)
+    elif args == ['--staged']:
+        scan_staged(deny)
+    elif args[0] == '--message' and len(args) == 2:
+        scan_message(args[1], deny)
+    elif args[0] == '--commits' and len(args) >= 2:
+        scan_commits(args[1:], deny)
+    elif args == ['--history']:
+        scan_commits(['--all'], deny)
+    else:
+        fail(f'bad arguments: {" ".join(args)}, see --help')
+
+    for f in findings:
+        print(f)
+    return 1 if findings else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -1,0 +1,569 @@
+#!/usr/bin/env python3
+"""check-modules - keep this repository's files consistent, and generate
+INDEX.md and CORE.md from the modules.
+
+usage:
+  check-modules           check the working tree, exit 1 on findings
+  check-modules --index   check the staged content instead (the pre-commit
+                          hook uses this)
+  check-modules --write   regenerate INDEX.md and CORE.md in the working
+                          tree, then check it
+
+Checks module layout (title, header fields, section names and order, the
+shape of the Always-on rules and [GATE] Checklist sections, the gate rule
+for every checklist group), dependencies, parameters against
+profile.example.md, relative links and their anchors, patch-management tool
+terms outside their area, unexpected files, ASCII, line endings, width,
+trailing whitespace, and that the generated files are current.
+CONTRIBUTING.md explains the rules. Exit status is 1 on findings and 2 on
+usage errors.
+"""
+
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import textwrap
+
+WIDTH = 80
+CODE_WIDTH = 100
+
+# (directory, title, opt-in, description); INDEX.md and CORE.md follow this order
+AREAS = [
+    ('core', 'Core discipline', False,
+     'How the agent reasons, how much it validates, when it asks, how it waits and '
+     'how it handles risky operations.'),
+    ('patches', 'Patches', False,
+     'Patch descriptions, code comments, cover letters, tags and line widths.'),
+    ('review', 'Review and build checks', False,
+     'checkpatch, build checks, milestone patchset review and formal model checks.'),
+    ('mail', 'Mail', False,
+     'Reading threads, sending mail safely, replies and the sent log.'),
+    ('submit', 'Submitting work', False,
+     'Posting patches and patchsets, new versions, dependencies and GitHub pull '
+     'requests.'),
+    ('maintain', 'Maintaining a tree', False,
+     'Branch model, applying patches, git safety, merges and pull requests.'),
+    ('test', 'Testing', False,
+     'Test result layout, remote test machines, VMs and performance comparisons.'),
+    ('debug', 'Debugging', False,
+     'Crash analysis, bug report triage and event tracing.'),
+    ('code', 'Kernel code', False,
+     'Kernel C idioms that are easy to get wrong.'),
+    ('style', 'Style presets', True,
+     'Opinionated writing and coding style presets. Opt-in.'),
+    ('quilt', 'Quilt', True,
+     'Managing patch stacks with quilt on top of git. Opt-in.'),
+    ('subsys', 'Subsystems', True,
+     'Subsystem-specific rules and testing. Opt-in.'),
+    ('agents', 'Agent notes', True,
+     'Quirks of specific agent harnesses. Opt-in: enable the ones you use.'),
+]
+AREA_DIRS = [a[0] for a in AREAS]
+OPTIN = {a[0] for a in AREAS if a[2]}
+SECTIONS = ['Always-on rules', '[GATE] Checklist', 'Procedure', 'Reference',
+            'Pitfalls', 'Customization']
+FIELDS = ['Load when', 'Parameters', 'Depends on']
+TOP_DOCS = ['README.md', 'CONTRIBUTING.md', 'INTEGRATION.md', 'UPGRADING.md',
+            'TEMPLATE.md', 'profile.example.md']
+GENERATED = ['INDEX.md', 'CORE.md']
+USING_DOCS = ['INTEGRATION.md'] + GENERATED   # where a parameter mention is a use
+PROFILE = 'profile.example.md'
+OTHER_FILES = ['.gitignore', '.gitattributes']
+
+# patch-management tools; a module outside the tool's area must not assume it
+TOOL_TERMS = [
+    ('quilt', 'quilt', re.compile(r'\bquilt\b', re.IGNORECASE)),
+    ('stgit', 'stgit', re.compile(r'\bstg(?:it)?\b|\bstacked git\b', re.IGNORECASE)),
+]
+
+PARAM_RE = re.compile(r'\$([A-Z][A-Z0-9_]+)')
+LINK_RE = re.compile(r'\[([^\]]*)\]\(([^)\s]+)\)')
+DEF_RE = re.compile(r'^- `\$([A-Z][A-Z0-9_]+)`:')
+FIELD_RE = re.compile(r'^- \*\*([A-Za-z ]+):\*\* (.*)$')
+HEADING_RE = re.compile(r'^(#{1,6}) (.*)$')
+MODULE_RE = re.compile(r'^([a-z]+)/([a-z0-9]+(?:-[a-z0-9]+)*)\.md$')
+SCHEME_RE = re.compile(r'^[a-z][a-z0-9+.-]*:')
+FENCE_RE = re.compile(r'(`{3,}|~{3,})')
+
+findings = []
+
+
+def report(path, line, msg):
+    findings.append(f'{path}:{line}: {msg}')
+
+
+def wrap(text, first='', rest=''):
+    return textwrap.wrap(text, WIDTH, initial_indent=first, subsequent_indent=rest,
+                         break_long_words=False, break_on_hyphens=False)
+
+
+def slug(text):
+    """GitHub's anchor for a heading."""
+    text = re.sub(r'\[([^\]]*)\]\([^)]*\)', r'\1', text).replace('`', '')
+    return re.sub(r'[^\w\- ]', '', text.strip().lower()).replace(' ', '-')
+
+
+class Doc:
+    """A markdown file with its lines and which of them are code."""
+
+    def __init__(self, path, raw):
+        self.path = path
+        self.text = raw.decode('utf-8', errors='replace')
+        self.lines = self.text.splitlines()
+        self.code, fence = [], None
+        for line in self.lines:
+            s = line.lstrip()
+            if fence is None:
+                m = FENCE_RE.match(s)
+                if m:
+                    fence = m.group(1)
+                self.code.append(bool(m))
+            else:
+                self.code.append(True)
+                if re.fullmatch(re.escape(fence[0]) + '{%d,}\\s*' % len(fence), s):
+                    fence = None
+
+    def paragraphs(self):
+        """Yield (first lineno, text) for each run of non-blank prose lines."""
+        start, buf = None, []
+        for i, line in enumerate(self.lines):
+            if self.code[i] or not line.strip():
+                if buf:
+                    yield start, '\n'.join(buf)
+                buf = []
+                continue
+            if not buf:
+                start = i + 1
+            buf.append(line)
+        if buf:
+            yield start, '\n'.join(buf)
+
+    def headings(self):
+        for i, line in enumerate(self.lines):
+            m = HEADING_RE.match(line)
+            if m and not self.code[i]:
+                yield i + 1, len(m.group(1)), m.group(2)
+
+    def anchors(self):
+        seen, out = {}, set()
+        for _, _, text in self.headings():
+            base = slug(text)
+            k = seen.get(base, 0)
+            out.add(base if k == 0 else f'{base}-{k}')
+            seen[base] = k + 1
+        return out
+
+    def sections(self):
+        """Return [(name, lineno, [(lineno, line)])] for '## ' sections."""
+        out = []
+        for i, line in enumerate(self.lines):
+            if line.startswith('## ') and not self.code[i]:
+                out.append((line[3:].strip(), i + 1, []))
+            elif out:
+                out[-1][2].append((i + 1, line))
+        return out
+
+
+def split_spans(text):
+    """Return (prose, code) copies of text, each with the other's characters
+    blanked, so that offsets still map to lines. Backticks pair across lines."""
+    prose, code, inside = list(text), list(text), False
+    for i, c in enumerate(text):
+        if c == '`':
+            inside = not inside
+            prose[i] = code[i] = ' '
+        elif c != '\n':
+            (prose if inside else code)[i] = ' '
+    return ''.join(prose), ''.join(code)
+
+
+def check_text(path, raw):
+    if b'\r' in raw:
+        report(path, raw[:raw.index(b'\r')].count(b'\n') + 1, 'CR line ending')
+    for n, line in enumerate(raw.split(b'\n'), 1):
+        if any(b > 0x7f for b in line):
+            report(path, n, 'non-ASCII character')
+            break
+    text = raw.decode('utf-8', errors='replace')
+    if text and not text.endswith('\n'):
+        report(path, text.count('\n') + 1, 'no newline at end of file')
+    for n, line in enumerate(text.splitlines(), 1):
+        if line != line.rstrip():
+            report(path, n, 'trailing whitespace')
+        if '\t' in line and path.endswith('.md'):
+            report(path, n, 'tab character')
+
+
+def single_token(line):
+    s = re.sub(r'^\s*(?:[-*] \[[ x]\] |[-*] |\d+\. |> )?', '', line)
+    return ' ' not in s.strip()
+
+
+def check_widths(doc):
+    for i, line in enumerate(doc.lines):
+        if doc.code[i]:
+            if len(line) > CODE_WIDTH:
+                report(doc.path, i + 1, f'code line longer than {CODE_WIDTH} columns')
+        elif len(line) > WIDTH and not line.lstrip().startswith('|') \
+                and not single_token(line):
+            report(doc.path, i + 1, f'line longer than {WIDTH} columns')
+
+
+def check_params(doc, defined, skip_lines=()):
+    """Return the defined parameters a file uses; report undefined ones.
+
+    A $NAME in prose must be defined. In code blocks and code spans, a $NAME
+    that is not defined is a shell variable and is ignored.
+    """
+    used = set()
+    for i, line in enumerate(doc.lines):
+        if doc.code[i] and i + 1 not in skip_lines:
+            used |= {p for p in PARAM_RE.findall(line) if p in defined}
+    for start, text in doc.paragraphs():
+        prose, code = split_spans(text)
+        for kind, part in (('code', code), ('prose', prose)):
+            for m in PARAM_RE.finditer(part):
+                n = start + text.count('\n', 0, m.start())
+                if n in skip_lines:
+                    continue
+                if m.group(1) in defined:
+                    used.add(m.group(1))
+                elif kind == 'prose':
+                    report(doc.path, n, f'${m.group(1)} is not defined in {PROFILE}')
+    return used
+
+
+def check_links(doc, docs):
+    for start, text in doc.paragraphs():
+        prose, _ = split_spans(text)
+        for m in LINK_RE.finditer(prose):
+            target, n = m.group(2), start + text.count('\n', 0, m.start())
+            if SCHEME_RE.match(target):
+                continue
+            file_part, _, anchor = target.partition('#')
+            dest = doc.path if not file_part else \
+                os.path.normpath(os.path.join(os.path.dirname(doc.path), file_part))
+            if dest not in docs and not os.path.isfile(dest) and not os.path.isdir(dest):
+                report(doc.path, n, f'link to missing file: {target}')
+            elif anchor and dest in docs and anchor not in docs[dest].anchors():
+                report(doc.path, n, f'link to missing anchor: {target}')
+
+
+def parse_list_section(path, body, kind):
+    """Return the bullets of an Always-on rules section as joined strings."""
+    bullets = []
+    for n, line in body:
+        if not line.strip():
+            continue
+        if line.startswith('- '):
+            bullets.append([line])
+        elif line.startswith('  ') and bullets:
+            bullets[-1].append(line)
+        else:
+            report(path, n, f'{kind} must be a bullet list')
+    return ['\n'.join(b) for b in bullets]
+
+
+def check_gate_section(path, body):
+    """Return {action: lineno} for the "### Before <action>" groups."""
+    groups, in_item = {}, False
+    for n, line in body:
+        if not line.strip():
+            in_item = False
+        elif line.startswith('### '):
+            in_item = False
+            m = re.fullmatch(r'### Before (.+)', line)
+            if m:
+                groups[m.group(1)] = n
+            else:
+                report(path, n, '[GATE] Checklist groups are "### Before <action>"')
+        elif line.startswith('- [ ] '):
+            in_item = True
+            if not groups:
+                report(path, n, '[GATE] Checklist items go under a "### Before <action>" group')
+        elif not (line.startswith('  ') and in_item):
+            report(path, n, '[GATE] Checklist holds "### " groups and "- [ ] " items only')
+    return groups
+
+
+def parse_module(doc, defined):
+    path, lines = doc.path, doc.lines
+    mod = {'path': path, 'area': path.split('/')[0], 'name': os.path.basename(path)[:-3],
+           'rules': [], 'deps': [], 'load_when': ''}
+    if not lines or not lines[0].startswith('# '):
+        report(path, 1, 'module must start with "# Title"')
+    elif len(lines) < 2 or lines[1]:
+        report(path, 2, 'blank line expected after the title')
+
+    fields, order, i = {}, [], 2
+    while i < len(lines) and lines[i].startswith('- **'):
+        m = FIELD_RE.match(lines[i])
+        if not m:
+            report(path, i + 1, 'malformed header field')
+            break
+        name, value, start = m.group(1), m.group(2), i + 1
+        i += 1
+        while i < len(lines) and lines[i].startswith('  '):
+            value += ' ' + lines[i].strip()
+            i += 1
+        fields[name] = (value, start, i)
+        order.append(name)
+    if order != FIELDS:
+        report(path, 3, f'header fields must be {", ".join(FIELDS)}, in that order')
+    for name in FIELDS:
+        fields.setdefault(name, ('none', 3, 3))
+    mod['load_when'] = fields['Load when'][0]
+
+    secs = doc.sections()
+    names = [s[0] for s in secs]
+    for name, n, _ in secs:
+        if name not in SECTIONS:
+            report(path, n, f'unknown section "{name}"; allowed: {", ".join(SECTIONS)}')
+    known = [s for s in names if s in SECTIONS]
+    if known != sorted(known, key=SECTIONS.index) or len(set(known)) != len(known):
+        report(path, secs[0][1] if secs else 1,
+               f'sections out of order or repeated; order: {", ".join(SECTIONS)}')
+    if 'Procedure' not in names and 'Reference' not in names:
+        report(path, 1, 'module needs a Procedure or a Reference section')
+    for n, level, _ in doc.headings():
+        if level == 1 and n != 1:
+            report(path, n, 'only the title may be a level-1 heading')
+
+    groups = {}
+    for name, n, body in secs:
+        if name == 'Always-on rules':
+            mod['rules'] = parse_list_section(path, body, 'Always-on rules')
+        elif name == '[GATE] Checklist':
+            groups = check_gate_section(path, body)
+    for action, n in groups.items():
+        if not any(r.startswith(f'- [GATE] Before {action}:') for r in mod['rules']):
+            report(path, n, f'needs an Always-on rule starting "[GATE] Before {action}:"')
+
+    for n, line in enumerate(lines, 1):
+        for tool, area, regex in TOOL_TERMS:
+            if mod['area'] != area and regex.search(line):
+                report(path, n, f'{tool} is optional; describe patch work with git here '
+                       f'and put {tool} steps in the {area}/ area')
+
+    value, n, end = fields['Parameters']
+    listed = set()
+    if value != 'none':
+        for item in value.split(','):
+            m = re.fullmatch(r'`\$([A-Z][A-Z0-9_]+)`', item.strip())
+            if not m:
+                report(path, n, 'Parameters must be "none" or `$NAME` items, comma-separated')
+                continue
+            if m.group(1) not in defined:
+                report(path, n, f'${m.group(1)} is not defined in {PROFILE}')
+            listed.add(m.group(1))
+    used = check_params(doc, defined, set(range(n, end + 1)))
+    for missing in sorted(used - listed):
+        report(path, n, f'Parameters lacks ${missing}')
+    for extra in sorted(listed - used):
+        report(path, n, f'Parameters lists unused ${extra}')
+    mod['used'] = used | listed
+
+    value, n, _ = fields['Depends on']
+    if value != 'none':
+        for item in value.split(','):
+            m = re.fullmatch(r'\[([^\]]+)\]\(([^)]+)\)', item.strip())
+            dest = m and os.path.normpath(os.path.join(os.path.dirname(path), m.group(2)))
+            if not m or not MODULE_RE.match(dest) or m.group(1) != dest[:-3]:
+                report(path, n, 'Depends on must be "none" or [area/name](relative.md) links')
+            else:
+                mod['deps'].append((dest, n))
+    return mod
+
+
+def rebase(text, src):
+    """Rewrite text's relative links from src's directory to the repo root."""
+    def fix(m):
+        label, target = m.group(1), m.group(2)
+        if SCHEME_RE.match(target):
+            return m.group(0)
+        file_part, sep, anchor = target.partition('#')
+        dest = src if not file_part else \
+            os.path.normpath(os.path.join(os.path.dirname(src), file_part))
+        return f'[{label}]({dest}{sep}{anchor})'
+    return LINK_RE.sub(fix, ' '.join(text.split()))
+
+
+def gen_index(mods):
+    out = ['# Index', '']
+    out += wrap('Generated by tools/check-modules --write from the module headers. '
+                'Do not edit by hand.') + ['']
+    out += wrap('Match the task against the "Load when" lines below. Say which module '
+                'applies and read it. Then read its overlay, the file in $OVERLAY_DIR '
+                'with the module\'s file name, such as apply-patches.md, if it exists. '
+                'The overlay wins on conflict. When a step links to a module from the '
+                'module\'s Depends on field, read that module too. $ALIASES maps the '
+                'user\'s short names to modules.') + ['']
+    out += wrap('Modules that $MODULES does not enable do not apply. If a step needs one, '
+                'tell the user. If a task needs a parameter the profile leaves unset and '
+                'it has no default, ask the user. Never guess it.') + ['']
+    for area, title, _, desc in AREAS:
+        here = sorted((m for m in mods if m['area'] == area), key=lambda m: m['name'])
+        if not here:
+            continue
+        out += [f'## {title}', ''] + wrap(desc) + ['']
+        for m in here:
+            line = f'[{area}/{m["name"]}]({m["path"]}): {rebase(m["load_when"], m["path"])}'
+            out += wrap(line, '- ', '  ')
+        out.append('')
+    return '\n'.join(out).rstrip('\n') + '\n'
+
+
+def gen_core(contrib_rules, mods):
+    out = ['# Core rules', '']
+    out += wrap('Generated by tools/check-modules --write from the "Always-on rules" '
+                'sections of CONTRIBUTING.md and the modules. Do not edit by hand.') + ['']
+    out += wrap('Read this file at the start of every task. Each heading links to the '
+                'file that explains its rules. Rules under a module that $MODULES does '
+                'not enable do not apply.') + ['']
+    out += ['## [When editing kernel-agent-workflows](CONTRIBUTING.md)', '']
+    for r in contrib_rules:
+        out += wrap(rebase(r[2:], 'CONTRIBUTING.md'), '- ', '  ')
+    out.append('')
+    for area, *_ in AREAS:
+        for m in sorted((m for m in mods if m['area'] == area), key=lambda m: m['name']):
+            if not m['rules']:
+                continue
+            tag = ' (opt-in)' if area in OPTIN else ''
+            out += [f'## [{area}/{m["name"]}]({m["path"]}){tag}', '']
+            for r in m['rules']:
+                out += wrap(rebase(r[2:], m['path']), '- ', '  ')
+            out.append('')
+    return '\n'.join(out).rstrip('\n') + '\n'
+
+
+def git(*args, cwd=None):
+    res = subprocess.run(['git', *args], capture_output=True, cwd=cwd)
+    if res.returncode:
+        sys.stderr.write(f'check-modules: git {" ".join(args)}: '
+                         f'{res.stderr.decode(errors="replace").strip()}\n')
+        sys.exit(2)
+    return res.stdout.decode()
+
+
+def check_tree(files, write):
+    def read(p):
+        with open(p, 'rb') as f:
+            return f.read()
+
+    modules = sorted(p for p in files if MODULE_RE.match(p))
+    for p in sorted(files):
+        if p in TOP_DOCS or p in GENERATED or p in OTHER_FILES or p.startswith('tools/'):
+            continue
+        m = MODULE_RE.match(p)
+        if not m or m.group(1) not in AREA_DIRS:
+            report(p, 0, 'unexpected file; modules live in area directories, see '
+                   'CONTRIBUTING.md')
+    names = {}
+    for p in modules:
+        names.setdefault(os.path.basename(p), []).append(p)
+    for base, paths in names.items():
+        if len(paths) > 1:
+            report(paths[1], 0, f'module name {base} is also used by {paths[0]}')
+
+    docs = {}
+    for p in TOP_DOCS + GENERATED + modules:
+        if p in GENERATED and write:
+            continue
+        if p not in files:
+            if p not in GENERATED:
+                report(p, 0, 'missing')
+            continue
+        raw = read(p)
+        check_text(p, raw)
+        docs[p] = Doc(p, raw)
+
+    defined = {}
+    for n, line in enumerate(docs[PROFILE].lines if PROFILE in docs else [], 1):
+        m = DEF_RE.match(line)
+        if m:
+            if m.group(1) in defined:
+                report(PROFILE, n, f'${m.group(1)} defined twice')
+            defined[m.group(1)] = n
+
+    mods, used = [], set()
+    for p in modules:
+        if MODULE_RE.match(p).group(1) in AREA_DIRS:
+            mod = parse_module(docs[p], defined)
+            mods.append(mod)
+            used |= mod['used']
+    for mod in mods:
+        for dest, n in mod['deps']:
+            if dest not in files:
+                report(mod['path'], n, f'depends on missing module {dest}')
+            elif mod['area'] not in OPTIN and dest.split('/')[0] in OPTIN:
+                report(mod['path'], n, f'a default module cannot depend on opt-in {dest}')
+
+    contrib_rules = []
+    for name, _, body in docs['CONTRIBUTING.md'].sections() if 'CONTRIBUTING.md' in docs else []:
+        if name == 'Always-on rules':
+            contrib_rules = parse_list_section('CONTRIBUTING.md', body, 'Always-on rules')
+    if 'CONTRIBUTING.md' in docs and not contrib_rules:
+        report('CONTRIBUTING.md', 1, 'needs an "## Always-on rules" section')
+
+    generated = {'INDEX.md': gen_index(mods), 'CORE.md': gen_core(contrib_rules, mods)}
+    for name, text in generated.items():
+        if write:
+            with open(name, 'w') as f:
+                f.write(text)
+            files.add(name)
+            docs[name] = Doc(name, text.encode())
+            check_text(name, text.encode())
+        current = docs[name].text if name in docs else ''
+        if current != text:
+            report(name, 0, 'missing or stale; run tools/check-modules --write')
+
+    for p in TOP_DOCS + GENERATED:
+        if p in docs:
+            file_used = check_params(docs[p], defined)
+            if p in USING_DOCS:
+                used |= file_used
+            check_widths(docs[p])
+    for p in modules:
+        check_widths(docs[p])
+    for p in sorted(f for f in files if f.startswith('tools/') or f in OTHER_FILES):
+        check_text(p, read(p))
+    for name, n in defined.items():
+        if name not in used:
+            report(PROFILE, n, f'${name} is defined but no module or INTEGRATION.md uses it')
+
+    for p in sorted(docs):
+        check_links(docs[p], docs)
+
+    if 'README.md' in docs:
+        for area in AREA_DIRS:
+            if f'`{area}/`' not in docs['README.md'].text:
+                report('README.md', 0, f'area {area}/ is not in the area table')
+
+
+def main():
+    args = sys.argv[1:]
+    if len(args) > 1 or (args and args[0] not in ('--write', '--index')):
+        print(__doc__)
+        return 2
+    here = os.path.dirname(os.path.realpath(__file__))
+    top = git('-C', here, 'rev-parse', '--show-toplevel').strip()
+    os.chdir(top)
+    if args == ['--index']:
+        files = {p for p in git('ls-files', '-z').split('\0') if p}
+        with tempfile.TemporaryDirectory() as tmp:
+            git('checkout-index', '-a', f'--prefix={tmp}/')
+            os.chdir(tmp)
+            check_tree({p for p in files if os.path.isfile(p)}, False)
+    else:
+        out = git('ls-files', '-co', '--exclude-standard', '-z')
+        check_tree({p for p in out.split('\0') if p and os.path.isfile(p)},
+                   args == ['--write'])
+    for f in findings:
+        print(f)
+    return 1 if findings else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
