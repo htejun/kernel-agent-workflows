@@ -54,9 +54,9 @@
 ### Publication trees
 Publication trees are for reading code, looking up branches and commit IDs,
 and preparing and sending patches and pull requests. No builds, config
-changes, instrumentation, VM runs or test checkouts happen there. Building a
-patch just applied in the tree, as part of applying it, is part of
-publishing.
+changes, instrumentation, VM runs or test checkouts happen there. The builds
+that are part of publishing do run there: the build of a patch just applied
+to the tree, and the test merge and build of a pull request.
 
 ### Editing files
 - Edit code and patch files with explicit replacements, one file at a time.

@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+"""mail-audit - check prepared mail files without modifying or sending them.
+
+usage:
+  mail-audit --from-account ADDRESS=ACCOUNT [--from-account ...]
+             --account ACCOUNT --subject SUBJECT [--self-copy ADDRESS]
+             [--reply-to ORIGINAL] FILE
+  mail-audit --format-patch --from-account ADDRESS=ACCOUNT [...]
+             --account ACCOUNT --subject SUBJECT FILE...
+
+  --from-account ADDRESS=ACCOUNT  a From address and the sendmail account
+                                  that sends as it; give one per account
+  --account ACCOUNT               the account the send command uses
+  --subject SUBJECT               the exact Subject from the readiness
+                                  summary; with --format-patch, the
+                                  Subject of the first file, the cover
+                                  letter or the single patch
+  --self-copy ADDRESS             an address that must be in the Bcc header
+  --reply-to ORIGINAL             the message being answered, as a raw
+                                  message file such as a maildir message
+                                  or an mbox with one message
+  --format-patch                  the files are git format-patch output
+                                  and a cover letter for git send-email
+  FILE                            absolute paths of the prepared mail
+
+Checks on every file: the first line is a header (with --format-patch, a
+"From <commit-id>" mbox separator line may come first and is skipped); the
+message and every header parse without defects; no Resent-* headers, which
+make a sendmail tool reading recipients from headers use Resent-To,
+Resent-Cc and Resent-Bcc instead of To, Cc and Bcc; exactly one non-empty
+From and Subject; at most one To, Cc, Bcc, In-Reply-To, References, Date
+and Message-ID; no header line over 998 columns; every address complete; no
+bare "--" signature separator line, which must be "-- " (skipped in files
+that hold a diff).
+
+Mail for the sendmail tool (one FILE): the Subject equals SUBJECT; the
+From address belongs to ACCOUNT; the sending address is not in To or Cc;
+with --self-copy, the address is in Bcc; with --reply-to, In-Reply-To holds
+the original's Message-ID, and every address in the original's From, To and
+Cc is still in the reply's To or Cc (an address moved to Bcc counts as
+dropped).
+
+git format-patch output (--format-patch, one or more FILEs): the first
+file's Subject equals SUBJECT and its From address belongs to ACCOUNT; no
+file has a Bcc header, because git send-email keeps it as a visible header
+and doesn't deliver to it. Recipients and the self-copy go on the git
+send-email command line, so --self-copy and --reply-to don't apply.
+
+On success it prints each file's first line, Subject, path and
+modification time, the account and the address headers. It reads files
+only: it never sends mail, touches credentials or authorizes a send. Exit
+status is 0 when the audit passes, 1 when it fails and 2 on usage errors.
+"""
+
+import argparse
+from datetime import datetime
+from email import policy
+from email.parser import BytesParser
+from email.utils import getaddresses
+from pathlib import Path
+import re
+import sys
+
+
+RECIPIENT_FIELDS = ('To', 'Cc', 'Bcc')
+HEADER_RE = re.compile(rb'^[A-Za-z][-A-Za-z0-9]*:[ \t]')
+MBOX_SEPARATOR_RE = re.compile(rb'^From [0-9a-f]{40,64} ')
+MSGID_RE = re.compile(r'<[^<>\s]+>')
+
+
+def read_message(path, format_patch):
+    if not path.is_absolute():
+        raise ValueError(f'use an absolute path: {path}')
+    data = path.read_bytes()
+    first = data.split(b'\n', 1)[0].rstrip(b'\r')
+    if format_patch and MBOX_SEPARATOR_RE.match(first):
+        data = data.split(b'\n', 1)[1] if b'\n' in data else b''
+    lines = data.splitlines()
+    if not lines or not HEADER_RE.match(lines[0]):
+        raise ValueError(f'{path}: first line must be an RFC 5322 header')
+    msg = BytesParser(policy=policy.default).parsebytes(data)
+    if msg.defects:
+        raise ValueError(f'{path}: malformed message: {msg.defects}')
+    for name, header in msg.items():
+        if header.defects:
+            raise ValueError(f'{path}: malformed {name}: {header.defects}')
+    return msg, first, lines
+
+
+def addresses(msg, fields):
+    result = set()
+    for field in fields:
+        for header in msg.get_all(field, []):
+            for address in header.addresses:
+                if not address.username or not address.domain:
+                    raise ValueError(f'{field}: expected a complete email address')
+                result.add(address.addr_spec.lower())
+    return result
+
+
+def check_common(path, msg, lines):
+    # a sendmail tool reading recipients from headers uses Resent-* instead
+    # of To/Cc/Bcc when they exist
+    if any(name.lower().startswith('resent-') for name in msg.keys()):
+        raise ValueError(f'{path}: Resent-* headers are not supported; '
+                         'prepare a normal reply or forward')
+    for field in ('From', 'Subject'):
+        if len(msg.get_all(field, [])) != 1 or not str(msg[field]).strip():
+            raise ValueError(f'{path}: exactly one nonempty {field} header is required')
+    for field in (*RECIPIENT_FIELDS, 'In-Reply-To', 'References', 'Date', 'Message-ID'):
+        if len(msg.get_all(field, [])) > 1:
+            raise ValueError(f'{path}: duplicate {field} header')
+    body = None
+    for number, line in enumerate(lines, 1):
+        if not line:
+            body = lines[number:]
+            break
+        if len(line) > 998:
+            raise ValueError(f'{path}: header line {number} exceeds 998 columns')
+    body = body or []
+    addresses(msg, ('From', *RECIPIENT_FIELDS))
+    # a removed line holding "-" reads as "--" in a diff
+    if not any(line.startswith(b'diff --git ') for line in body):
+        if any(line.rstrip(b'\r') == b'--' for line in body):
+            raise ValueError(f'{path}: bare "--" signature separator; it must be "-- "')
+
+
+def check_sender(path, msg, accounts, account):
+    sender = msg['From'].addresses
+    if len(sender) != 1:
+        raise ValueError(f'{path}: From must hold exactly one address')
+    sender = sender[0].addr_spec.lower()
+    if sender not in accounts:
+        raise ValueError(f'{path}: From {sender} has no account in --from-account')
+    if accounts[sender] != account:
+        raise ValueError(f'{path}: From {sender} belongs to account {accounts[sender]}, '
+                         f'not {account}')
+    return sender
+
+
+def read_original(path):
+    """Parse the message being answered leniently: it is someone else's mail."""
+    if not path.is_absolute():
+        raise ValueError(f'use an absolute path: {path}')
+    data = path.read_bytes()
+    if data.startswith(b'From '):
+        data = data.split(b'\n', 1)[1] if b'\n' in data else b''
+    msg = BytesParser(policy=policy.compat32).parsebytes(data)
+    ids = MSGID_RE.findall(str(msg.get('Message-ID', '')))
+    if not ids:
+        raise ValueError(f'{path}: the original has no Message-ID')
+    found = set()
+    for field in ('From', 'To', 'Cc'):
+        for _, address in getaddresses([str(v) for v in msg.get_all(field, [])]):
+            if '@' in address:
+                found.add(address.lower())
+    return ids[0], found
+
+
+def audit_sendmail(args, accounts):
+    path = args.files[0]
+    msg, first, lines = read_message(path, False)
+    check_common(path, msg, lines)
+    if str(msg['Subject']) != args.subject:
+        raise ValueError(f'Subject differs from expected: {msg["Subject"]}')
+    sender = check_sender(path, msg, accounts, args.account)
+    visible = addresses(msg, ('To', 'Cc'))
+    if sender in visible:
+        raise ValueError(f'sending address {sender} must not be in To/Cc')
+    if args.self_copy and args.self_copy.lower() not in addresses(msg, ('Bcc',)):
+        raise ValueError(f'Bcc self-copy to {args.self_copy} is missing')
+    if args.reply_to:
+        original_id, original_addresses = read_original(args.reply_to)
+        if original_id not in MSGID_RE.findall(str(msg.get('In-Reply-To', ''))):
+            raise ValueError(f'In-Reply-To must hold the original Message-ID {original_id}')
+        missing = original_addresses - visible - {sender}
+        if missing:
+            raise ValueError('reply drops recipients from To/Cc: ' + ', '.join(sorted(missing)))
+    report(path, msg, first)
+    print('Recipients:', ', '.join(sorted(addresses(msg, RECIPIENT_FIELDS))))
+
+
+def audit_format_patch(args, accounts):
+    checked = []
+    for number, path in enumerate(args.files):
+        msg, first, lines = read_message(path, True)
+        check_common(path, msg, lines)
+        if msg.get_all('Bcc'):
+            raise ValueError(f'{path}: Bcc header; git send-email keeps it visible and '
+                             'does not deliver to it, so pass the address with --bcc')
+        if number == 0:
+            if str(msg['Subject']) != args.subject:
+                raise ValueError(f'{path}: Subject differs from expected: {msg["Subject"]}')
+            check_sender(path, msg, accounts, args.account)
+        checked.append((path, msg, first))
+    for path, msg, first in checked:
+        report(path, msg, first)
+
+
+def report(path, msg, first):
+    print(first.decode(errors='replace'))
+    print('Subject:', msg['Subject'])
+    print('File:', path)
+    print('Mtime:', datetime.fromtimestamp(path.stat().st_mtime).astimezone().isoformat())
+    for field in ('From', *RECIPIENT_FIELDS, 'In-Reply-To'):
+        if msg[field] is not None:
+            print(f'{field}: {msg[field]}')
+
+
+def parse_accounts(items):
+    accounts = {}
+    for item in items:
+        address, sep, account = item.partition('=')
+        address, account = address.strip().lower(), account.strip()
+        if not sep or not account or '@' not in address:
+            raise ValueError(f'--from-account wants ADDRESS=ACCOUNT: {item}')
+        if address in accounts:
+            raise ValueError(f'address {address} given twice')
+        accounts[address] = account
+    return accounts
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Check prepared mail files without modifying or sending them.')
+    parser.add_argument('files', type=Path, nargs='+', metavar='FILE',
+                        help='absolute paths of the prepared mail')
+    parser.add_argument('--from-account', action='append', required=True,
+                        metavar='ADDRESS=ACCOUNT',
+                        help='a From address and its sendmail account; one per account')
+    parser.add_argument('--account', required=True,
+                        help='account used by the subsequent send command')
+    parser.add_argument('--subject', required=True, help='exact subject from the send summary')
+    parser.add_argument('--self-copy', metavar='ADDRESS',
+                        help='address that must be in the Bcc header')
+    parser.add_argument('--reply-to', type=Path, metavar='ORIGINAL',
+                        help='the message being answered, as a raw message file')
+    parser.add_argument('--format-patch', action='store_true',
+                        help='the files are git format-patch output for git send-email')
+    args = parser.parse_args()
+    try:
+        accounts = parse_accounts(args.from_account)
+    except ValueError as error:
+        parser.error(str(error))
+    if args.account not in accounts.values():
+        parser.error(f'--account {args.account} is not one of: '
+                     f'{", ".join(sorted(set(accounts.values())))}')
+    if args.format_patch:
+        if args.self_copy or args.reply_to:
+            parser.error('--self-copy and --reply-to are for sendmail mail; git send-email '
+                         'takes the self-copy as --bcc and the thread as --in-reply-to')
+    elif len(args.files) != 1:
+        parser.error('one FILE per sendmail message; several files need --format-patch')
+    try:
+        if args.format_patch:
+            audit_format_patch(args, accounts)
+        else:
+            audit_sendmail(args, accounts)
+    except (OSError, ValueError) as error:
+        print(f'mail-audit: {error}', file=sys.stderr)
+        return 1
+    print('Account:', args.account)
+    print('Audit passed. No mail sent.')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

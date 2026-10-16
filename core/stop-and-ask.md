@@ -34,8 +34,8 @@
   integration branches or a rewrite of published history.
 - A step that should have been clean and wasn't: a patch that applies only
   with offset or fuzz, an unexpected merge conflict, or a failed apply.
-  During a rework of its own patch stack that the user asked for, the agent
-  resolves its own apply failures.
+  Conflicts in a rework of the agent's own patches are the exception
+  ([core/git-safety](../core/git-safety.md#rebasing-the-agents-own-patches)).
 
 ### Standard flows
 The build, merge, push and acknowledgment steps of a flow the user

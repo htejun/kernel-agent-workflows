@@ -135,10 +135,10 @@ because TLC assumes sequential consistency.
     model: no <reason>
     ```
 
-    Patch descriptions never mention the model. A cover letter may say in
-    one clause, at an outside reader's level, what was model checked, such
-    as "the enable and disable handshake was model checked for small CPU
-    counts", when that helps a reviewer.
+    Patch descriptions and cover letters mention the model only as
+    [patches/patch-descriptions](../patches/patch-descriptions.md#what-stays-out)
+    and [patches/cover-letters](../patches/cover-letters.md#testing-summary)
+    allow.
 
 ## Reference
 

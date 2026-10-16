@@ -1,0 +1,532 @@
+#!/usr/bin/env python3
+"""textfill - column fill checker and refiller for kernel patches.
+
+The fill rule goes both directions: no line exceeds its limit, and no
+line breaks early while the next line's first word still fits (greedy
+fill). Patch descriptions, comments (including indentation) and code
+lines each have their own limit: 76, 80 and 94 columns unless the options
+below change them. Only text a patch ADDS is checked, so preexisting text
+never shows up.
+
+Prose is filled in blocks: a paragraph, or a bullet or numbered item with
+its continuation lines. Blank lines, tags such as Signed-off-by:,
+reference list lines such as [1] <sha12> ("subject"), and preformatted
+lines end a block and are not checked. A description line is preformatted
+when it is indented and is neither a bullet nor a bullet's continuation,
+such as an oops trace or a log. A comment line is preformatted when its
+text is indented by two or more spaces past the "*" in the same way, such
+as a diagram. A line that holds one unbreakable token, such as a URL, may
+run over.
+
+Code checks: overflow past the code limit, and premature wraps (a
+continuation line -- unclosed paren depth, or the previous line ending in
+"=", "&&", "||" -- whose first token still fits on the previous line).
+Brace placement is left to checkpatch.
+
+usage:
+  textfill [OPTIONS] check PATCH...   check patch files, exit 1 on findings
+  textfill [OPTIONS] fill [-w WIDTH] [-p PREFIX]
+                                      greedy-refill stdin, one paragraph;
+                                      WIDTH defaults to the comment limit
+  textfill [OPTIONS] refill PATCH     refill flagged comment paragraphs in the
+                                      source files (run from the tree root with
+                                      the patch applied) and flagged desc
+                                      paragraphs in the patch file itself
+
+options (anywhere on the command line):
+  --desc N      description limit, default 76
+  --comment N   comment limit including indentation, default 80
+  --code N      code limit, default 94
+  --tag NAME    treat "NAME:" lines in a description as tags, like
+                Signed-off-by:, which are never filled; repeatable
+
+A patch file holds one commit, with plain From:/Subject: headers or as git
+format-patch writes it. The description ends at the first "---" line.
+"""
+
+import re
+import sys
+
+DESC_W = 76
+COMMENT_W = 80
+CODE_W = 94
+
+STD_TAGS = ["Signed-off-by", "Acked-by", "Reviewed-by", "Tested-by", "Reported-by",
+            "Reported-and-tested-by", "Suggested-by", "Co-developed-by",
+            "Original-patch-by", "Originally-by", "Cc", "Link", "Fixes", "Closes"]
+
+def tag_re(extra):
+    return re.compile(r"^(" + "|".join(re.escape(t) for t in STD_TAGS + extra) + r"):")
+
+TAG_RE = tag_re([])
+BULLET_RE = re.compile(r"^(\s*)([-*] |\d+\. )")
+# reference list lines: [N] <sha12> ("subject"), or [N] and one token such as a URL
+REF_RE = re.compile(r'^\s*\[\d+\] (?:[0-9a-f]{12,40} \(".*"\)|\S+)\s*$')
+# the separator line git format-patch starts each patch with
+MBOX_FROM_RE = re.compile(r"^From [0-9a-f]{40,64} ")
+
+def vlen(s):
+    return len(s.expandtabs(8))
+
+def indent(s):
+    return len(s) - len(s.lstrip())
+
+def first_word(s):
+    words = s.split()
+    return words[0] if words else None
+
+def unbreakable(text):
+    """True if text is one token after any bullet marker, such as a URL,
+    which no line break can shorten."""
+    m = BULLET_RE.match(text)
+    if m:
+        text = text[m.end():]
+    return len(text.split()) == 1
+
+def check_pair(path, lnum, cur, nxt_content, limit, kind, findings):
+    """cur breaks early if nxt's first word still fits on it."""
+    w = first_word(nxt_content)
+    if not w:
+        return
+    if vlen(cur) + 1 + len(w) <= limit:
+        findings.append((path, lnum, kind,
+                         f'underfilled: "{w}" fits within {limit} '
+                         f"(line is {vlen(cur)})"))
+
+def desc_blocks(lines):
+    """Split description lines into fill blocks of (index, line) pairs.
+    Blank lines, tags, reference list lines and preformatted lines end a
+    block and belong to none. An indented line is preformatted unless it
+    is a bullet or continues the current bullet at its text column."""
+    blocks = []
+    block = []
+    cont = None         # text column of the bullet the current block started with
+    for i, line in enumerate(lines):
+        m = BULLET_RE.match(line)
+        pre = not m and line[:1].isspace() and indent(line) != cont
+        if not line.strip() or TAG_RE.match(line) or REF_RE.match(line) or pre:
+            if block:
+                blocks.append(block)
+            block = []
+            cont = None
+            continue
+        if m:
+            if block:
+                blocks.append(block)
+            block = []
+            cont = m.end()
+        block.append((i, line))
+    if block:
+        blocks.append(block)
+    return blocks
+
+def check_desc(path, lines, start_lnum, findings):
+    """Check description prose: paragraphs and bullets fill to DESC_W."""
+    for block in desc_blocks(lines):
+        for (i, line), (_, nxt) in zip(block, block[1:]):
+            check_pair(path, start_lnum + i, line, nxt.strip(), DESC_W, "desc",
+                       findings)
+        for i, line in block:
+            if vlen(line) > DESC_W and not unbreakable(line):
+                findings.append((path, start_lnum + i, "desc",
+                                 f"overflows {DESC_W} ({vlen(line)})"))
+
+COMMENT_BODY_RE = re.compile(r"^(\s*)\*( |$)")
+COMMENT_OPEN_RE = re.compile(r"^(\s*)/\*")
+
+def comment_content(line):
+    """Text after the ' * ' continuation marker, None if not a body line."""
+    m = COMMENT_BODY_RE.match(line)
+    if not m:
+        return None
+    return line[m.end():]
+
+def comment_kind(content, cont):
+    """Classify a comment line by its text after the marker. "bullet" starts
+    a fill block, "text" and "cont" continue one, and None ends it. Text
+    indented by two or more spaces is preformatted, such as a diagram,
+    unless it continues the current bullet at its text column (cont)."""
+    if (content is None or not content.strip() or content.startswith("@") or
+        content.strip() == "/"):
+        return None
+    if BULLET_RE.match(content):
+        return "bullet"
+    if content.startswith("  "):
+        return "cont" if indent(content) == cont else None
+    return "text"
+
+def comment_unbreakable(line):
+    """True if a comment line's text is one token, such as a URL."""
+    words = [w for w in line.split() if w not in ("/*", "/**", "*", "*/")]
+    if words and BULLET_RE.match(words[0] + " "):
+        words = words[1:]
+    return len(words) == 1
+
+def code_chunk(s):
+    """First join unit of a continuation line: up to the first top-level
+    comma, else the whole line. Splitting finer (e.g. a type off its
+    identifier) is never a join a human would make."""
+    depth = 0
+    in_str = None
+    esc = False
+    for i, ch in enumerate(s):
+        if esc:
+            esc = False
+            continue
+        if in_str:
+            if ch == "\\":
+                esc = True
+            elif ch == in_str:
+                in_str = None
+            continue
+        if ch in "\"'":
+            in_str = ch
+        elif ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth -= 1
+        elif ch == "," and depth <= 0:
+            return s[:i + 1]
+    return s
+
+def strip_code(line):
+    """Crudely drop string/char literals and comments for structure checks."""
+    s = re.sub(r'"(?:\\.|[^"\\])*"', '""', line)
+    s = re.sub(r"'(?:\\.|[^'\\])*'", "''", s)
+    s = re.sub(r"/\*.*?\*/", "", s)
+    s = re.sub(r"//.*", "", s)
+    s = re.sub(r"/\*.*", "", s)
+    return s
+
+def check_diff(path, lines, start_lnum, findings):
+    """Check added comment lines (fill to COMMENT_W) and added code lines
+    (fill to CODE_W). Code checks cover C files only; rustfmt owns Rust
+    formatting."""
+    prev = None         # (lnum, full_line, comment kind) of previous added line
+    code_prev = None    # (lnum, full_line, stripped) of previous added code line
+    depth = 0           # unclosed paren depth across consecutive added code lines
+    cont = None         # text column of the current comment bullet
+    c_file = True
+    for i, raw in enumerate(lines):
+        lnum = start_lnum + i
+        if not raw.startswith("+") or raw.startswith("+++"):
+            m = NEWFILE_RE.match(raw)
+            if m:
+                c_file = m.group(1).endswith((".c", ".h"))
+            prev = None
+            code_prev = None
+            depth = 0
+            cont = None
+            continue
+        line = raw[1:]
+        content = comment_content(line)
+        in_comment = content is not None or COMMENT_OPEN_RE.match(line)
+        kind = None
+
+        if in_comment:
+            kind = comment_kind(content, cont)
+            if kind == "bullet":
+                cont = BULLET_RE.match(content).end()
+            elif kind is None:
+                cont = None
+            if vlen(line) > COMMENT_W and not comment_unbreakable(line):
+                findings.append((path, lnum, "comment",
+                                 f"overflows {COMMENT_W} ({vlen(line)})"))
+            if (kind in ("text", "cont") and prev and prev[2] is not None and
+                content.strip() != "*/"):
+                check_pair(path, prev[0], prev[1], content.strip(),
+                           COMMENT_W, "comment", findings)
+            code_prev = None
+            depth = 0
+        elif not c_file:
+            cont = None
+        elif line.strip().startswith("#"):
+            if vlen(line) > CODE_W:
+                findings.append((path, lnum, "code",
+                                 f"overflows {CODE_W} ({vlen(line)})"))
+            code_prev = None
+            depth = 0
+            cont = None
+        elif line.strip():
+            if vlen(line) > CODE_W:
+                findings.append((path, lnum, "code",
+                                 f"overflows {CODE_W} ({vlen(line)})"))
+            stripped = strip_code(line)
+            if line.strip() == "{":
+                pass            # brace placement is checkpatch's job
+            elif code_prev is not None:
+                # depth is the unclosed depth at the end of code_prev
+                pstr = code_prev[2].rstrip()
+                if depth >= 1 or pstr.endswith(("=", "&&", "||")):
+                    w = code_chunk(line.strip())
+                    # ".member =" lines are designated initializers, one
+                    # per line by convention even in parenthesized macros
+                    if w and not w.startswith(".") and \
+                       vlen(code_prev[1]) + 1 + len(w) <= CODE_W:
+                        findings.append((path, code_prev[0], "code",
+                                         f'underfilled: "{w}" fits within '
+                                         f"{CODE_W} "
+                                         f"(line is {vlen(code_prev[1])})"))
+            depth += stripped.count("(") - stripped.count(")")
+            depth = max(depth, 0)
+            if stripped.rstrip().endswith((";", "{", "}")):
+                depth = 0
+            code_prev = (lnum, line, stripped)
+            cont = None
+        else:
+            code_prev = None
+            depth = 0
+            cont = None
+
+        prev = (lnum, line, kind)
+
+def desc_range(text):
+    """Return (first, end) line indices of a patch file's description."""
+    try:
+        split = text.index("---")
+    except ValueError:
+        split = len(text)
+
+    # skip the separator line git format-patch writes, then the From:/Subject:
+    # header block, including folded continuations
+    body = 1 if text and MBOX_FROM_RE.match(text[0]) else 0
+    while body < split and (re.match(r"^[A-Za-z-]+:", text[body]) or
+                            (body and text[body].startswith((" ", "\t")))):
+        body += 1
+    return body, split
+
+def check_patch(path):
+    findings = []
+    text = open(path, encoding="utf-8", errors="replace").read().splitlines()
+    body, split = desc_range(text)
+    check_desc(path, text[body:split], body + 1, findings)
+    check_diff(path, text[split:], split + 1, findings)
+    return findings
+
+def do_fill(width, prefix):
+    words = sys.stdin.read().split()
+    cur = prefix
+    out = []
+    first = True
+    for w in words:
+        if not first and vlen(cur) + 1 + len(w) > width:
+            out.append(cur)
+            cur = prefix + w
+        else:
+            cur = w if first and not prefix else \
+                (cur + (" " if not first else "") + w if not first else
+                 prefix + w)
+        first = False
+    if cur.strip():
+        out.append(cur)
+    print("\n".join(out))
+
+HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+NEWFILE_RE = re.compile(r"^\+\+\+ (?:b/)?(.*)")
+
+def patch_line_map(text, split):
+    """Map patch-file line number -> (source file, new-file line number)."""
+    mapping = {}
+    cur_file = None
+    new_ln = 0
+    for i in range(split, len(text)):
+        line = text[i]
+        m = NEWFILE_RE.match(line)
+        if m:
+            cur_file = m.group(1)
+            continue
+        m = HUNK_RE.match(line)
+        if m:
+            new_ln = int(m.group(1))
+            continue
+        if line.startswith("-") or cur_file is None:
+            continue
+        if line.startswith("+"):
+            mapping[i + 1] = (cur_file, new_ln)
+        new_ln += 1
+    return mapping
+
+def comment_blocks(lines):
+    """Fill blocks of a source file's comments as (first, last) indices."""
+    blocks = []
+    start = None
+    cont = None
+    for j, line in enumerate(lines):
+        content = comment_content(line)
+        kind = comment_kind(content, cont)
+        if kind == "bullet":
+            cont = BULLET_RE.match(content).end()
+        elif kind is None:
+            cont = None
+        if kind is None or kind == "bullet" or content.strip() == "*/":
+            if start is not None:
+                blocks.append((start, j - 1))
+            start = j if kind == "bullet" else None
+        elif start is None:
+            start = j
+    if start is not None:
+        blocks.append((start, len(lines) - 1))
+    return blocks
+
+def refill_lines(first_prefix, cont_prefix, words, width):
+    out = []
+    cur = first_prefix + words[0]
+    for w in words[1:]:
+        if vlen(cur) + 1 + len(w) > width:
+            out.append(cur)
+            cur = cont_prefix + w
+        else:
+            cur += " " + w
+    out.append(cur)
+    return out
+
+def refill_comment(lines, lo, hi, width):
+    prefix = COMMENT_BODY_RE.match(lines[lo]).group(1) + "* "
+    first = comment_content(lines[lo])
+    b = BULLET_RE.match(first)
+    first_prefix = prefix + (b.group(0) if b else "")
+    cont_prefix = prefix + (" " * len(b.group(0)) if b else "")
+    words = (first[b.end():] if b else first).split()
+    for j in range(lo + 1, hi + 1):
+        words += comment_content(lines[j]).split()
+    return refill_lines(first_prefix, cont_prefix, words, width)
+
+def refill_desc(lines, width):
+    m = BULLET_RE.match(lines[0])
+    first_prefix = m.group(0) if m else ""
+    cont_prefix = " " * len(first_prefix)
+    words = (lines[0][m.end():] if m else lines[0]).split()
+    for l in lines[1:]:
+        words += l.split()
+    return refill_lines(first_prefix, cont_prefix, words, width)
+
+def do_refill(path):
+    findings = check_patch(path)
+    text = open(path, encoding="utf-8", errors="replace").read().splitlines()
+    body, split = desc_range(text)
+
+    lmap = patch_line_map(text, split)
+
+    # refill flagged comment paragraphs in the source files
+    by_file = {}
+    for _, lnum, kind, msg in findings:
+        if kind != "comment" or "underfilled" not in msg:
+            continue
+        if lnum not in lmap:
+            continue
+        f, src_ln = lmap[lnum]
+        by_file.setdefault(f, set()).add(src_ln)
+
+    for f, lns in by_file.items():
+        src = open(f, encoding="utf-8").read().splitlines()
+        blocks = comment_blocks(src)
+        paras = set()
+        for ln in lns:
+            idx = ln - 1
+            hit = [b for b in blocks if b[0] <= idx <= b[1]]
+            if not hit:
+                print(f"SKIP {f}:{ln}: not a comment body line")
+                continue
+            paras.add(hit[0])
+        for lo, hi in sorted(paras, reverse=True):
+            src[lo:hi + 1] = refill_comment(src, lo, hi, COMMENT_W)
+            print(f"refilled {f}:{lo + 1}-{hi + 1}")
+        open(f, "w", encoding="utf-8").write("\n".join(src) + "\n")
+
+    # refill flagged desc paragraphs in the patch file itself
+    desc_lines = {lnum for _, lnum, kind, msg in findings
+                  if kind == "desc" and "underfilled" in msg}
+    if desc_lines:
+        paras = set()
+        for block in desc_blocks(text[body:split]):
+            if any(body + i + 1 in desc_lines for i, _ in block):
+                paras.add((body + block[0][0], body + block[-1][0]))
+        for lo, hi in sorted(paras, reverse=True):
+            text[lo:hi + 1] = refill_desc(text[lo:hi + 1], DESC_W)
+            print(f"refilled {path}:{lo + 1}-{hi + 1} (desc)")
+        open(path, "w", encoding="utf-8").write("\n".join(text) + "\n")
+
+    return 0
+
+def parse_options(args):
+    """Apply the limit and tag options wherever they appear, and return the
+    remaining arguments."""
+    global DESC_W, COMMENT_W, CODE_W, TAG_RE
+    rest = []
+    tags = []
+    i = 0
+    while i < len(args):
+        name, eq, val = args[i].partition("=")
+        if name not in ("--desc", "--comment", "--code", "--tag"):
+            rest.append(args[i])
+            i += 1
+            continue
+        if not eq:
+            if i + 1 >= len(args):
+                raise ValueError(f"{name} needs a value")
+            val = args[i + 1]
+            i += 1
+        i += 1
+        if name == "--tag":
+            tags.append(val)
+            continue
+        try:
+            width = int(val)
+        except ValueError:
+            raise ValueError(f"{name} needs a number, not {val!r}")
+        if name == "--desc":
+            DESC_W = width
+        elif name == "--comment":
+            COMMENT_W = width
+        else:
+            CODE_W = width
+    TAG_RE = tag_re(tags)
+    return rest
+
+def main():
+    try:
+        args = parse_options(sys.argv[1:])
+    except ValueError as e:
+        print(f"textfill: {e}", file=sys.stderr)
+        return 2
+    if not args:
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+
+    if args[0] == "fill":
+        width = COMMENT_W
+        prefix = ""
+        rest = args[1:]
+        while rest:
+            if rest[0] in ("-w", "--width"):
+                width = int(rest[1])
+                rest = rest[2:]
+            elif rest[0] in ("-p", "--prefix"):
+                prefix = rest[1]
+                rest = rest[2:]
+            else:
+                print(f"unknown fill arg {rest[0]}", file=sys.stderr)
+                return 2
+        do_fill(width, prefix)
+        return 0
+
+    if args[0] == "refill":
+        for path in args[1:]:
+            do_refill(path)
+        return 0
+
+    if args[0] != "check":
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+
+    total = 0
+    for path in args[1:]:
+        for path_, lnum, kind, msg in check_patch(path):
+            print(f"{path_}:{lnum}: [{kind}] {msg}")
+            total += 1
+    if total:
+        print(f"{total} finding(s)")
+    return 1 if total else 0
+
+if __name__ == "__main__":
+    sys.exit(main())

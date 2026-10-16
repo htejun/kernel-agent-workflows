@@ -1,0 +1,429 @@
+#!/usr/bin/env python3
+"""
+kernel-tree-status - report the mainline release cycle and the fixes that
+each maintainer tree has not sent to mainline yet.
+
+- Refreshes kernel.org mainline release state into a state file so the
+  current devel cycle never has to be guessed.
+- For each tree, finds the most recent pull request tag (the last batch sent
+  to mainline) and lists the fixes-branch commits since then that mainline
+  doesn't have yet.
+- Flags:
+    * commits committed more than --stale-days (default 7) ago and still unsent
+    * any pending commits if mainline is close to release (rc6+)
+
+Trees follow the for-X.Y branch model: the fixes branch is for-X.Y-fixes, pull
+request tags are named <tag-prefix>-for-X.Y or <tag-prefix>-for-X.Y-<suffix>,
+and the branch that --mainline names (default master) tracks mainline. Once
+X.Y is released, the merge window's fixes branch, the lowest for-*-fixes
+branch above X.Y, is checked if it exists.
+
+Usage:
+    kernel-tree-status                 # check + print human report, update state
+    kernel-tree-status --json          # emit machine-readable summary
+    kernel-tree-status --no-fetch      # don't run `git fetch` in each tree
+    kernel-tree-status --no-net        # skip kernel.org refresh, use cached state
+
+Trees:
+    --tree NAME PATH [TAG_PREFIX]      one tree, repeatable; replaces the config file
+    --config FILE                      config file, one tree per line:
+
+        # name     path                 tag prefix (default: name)
+        mysubsys   ~/src/mysubsys       mysubsys
+
+    The config file defaults to $KERNEL_TREE_STATUS_CONFIG, then to
+    $XDG_CONFIG_HOME/kernel-tree-status/trees (~/.config when unset).
+    Each path must be the top level of a git work tree.
+
+State file:
+    --state FILE                       defaults to $KERNEL_TREE_STATUS_STATE, then to
+                                       $XDG_STATE_HOME/kernel-tree-status/state.json
+                                       (~/.local/state when unset)
+
+    last_checked_at changes only on a full refresh: the release state came from
+    kernel.org and every git query and requested git fetch succeeded. A run with
+    --no-net or with a failure leaves it alone, so its age tells how stale the
+    state is.
+
+Exit status: 0 on success, 1 when kernel.org, a git fetch or a git query failed
+(the report is still printed and saved), 2 on usage and setup errors.
+
+The script runs git fetch in each tree unless --no-fetch is given. Everything
+else it runs in the trees is a read-only git query.
+"""
+
+from __future__ import annotations
+
+import argparse
+import dataclasses
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+KERNEL_ORG_URL = "https://www.kernel.org/releases.json"
+STALE_DAYS_DEFAULT = 7
+CLOSE_TO_RELEASE_RC = 6  # rc6 onward = "close to release"
+
+
+@dataclasses.dataclass
+class UnsentCommit:
+    sha12: str
+    subject: str
+    commit_iso: str
+    age_days: int
+
+
+def run(cmd: list[str], cwd: Path | None = None) -> str:
+    res = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    if res.returncode:
+        raise subprocess.CalledProcessError(res.returncode, cmd, res.stdout, res.stderr)
+    return res.stdout.strip()
+
+
+def git_error(e: subprocess.CalledProcessError) -> str:
+    msg = "; ".join(line.strip() for line in (e.stderr or "").splitlines() if line.strip())
+    return f"{' '.join(e.cmd)}: {msg or f'exit status {e.returncode}'}"
+
+
+def xdg_dir(var: str, fallback: str) -> Path:
+    val = os.environ.get(var)
+    if val and os.path.isabs(val):
+        return Path(val)
+    return Path.home() / fallback
+
+
+def state_path(arg: str | None) -> Path:
+    if arg:
+        return Path(arg).expanduser()
+    env = os.environ.get("KERNEL_TREE_STATUS_STATE")
+    if env:
+        return Path(env).expanduser()
+    return xdg_dir("XDG_STATE_HOME", ".local/state") / "kernel-tree-status" / "state.json"
+
+
+def config_path(arg: str | None) -> Path:
+    if arg:
+        return Path(arg).expanduser()
+    env = os.environ.get("KERNEL_TREE_STATUS_CONFIG")
+    if env:
+        return Path(env).expanduser()
+    return xdg_dir("XDG_CONFIG_HOME", ".config") / "kernel-tree-status" / "trees"
+
+
+def make_tree(fields: list[str], where: str, mainline: str) -> dict:
+    if len(fields) not in (2, 3):
+        raise ValueError(f"{where}: expected NAME PATH [TAG_PREFIX], got {fields!r}")
+    name, path = fields[0], Path(fields[1]).expanduser()
+    if not path.is_dir():
+        raise ValueError(f"{where}: {path} is not a directory")
+    try:
+        top = run(["git", "rev-parse", "--show-toplevel"], cwd=path)
+    except subprocess.CalledProcessError:
+        top = None
+    if not top or Path(top).resolve() != path.resolve():
+        raise ValueError(f"{where}: {path} is not the top level of a git work tree")
+    try:
+        run(["git", "rev-parse", "--verify", "--quiet", f"{mainline}^{{commit}}"], cwd=path)
+    except subprocess.CalledProcessError:
+        raise ValueError(f"{where}: {path} has no {mainline}; name the mainline branch "
+                         f"with --mainline")
+    prefix = fields[2] if len(fields) == 3 else name
+    return {"name": name, "path": path, "tag_prefix": prefix}
+
+
+def load_trees(args: argparse.Namespace) -> list[dict]:
+    if args.tree:
+        return [make_tree(t, "--tree", args.mainline) for t in args.tree]
+    path = config_path(args.config)
+    if not path.is_file():
+        raise ValueError(f"no trees given: use --tree, or list them in {path}")
+    trees = []
+    for n, line in enumerate(path.read_text().splitlines(), 1):
+        fields = shlex.split(line, comments=True)
+        if fields:
+            trees.append(make_tree(fields, f"{path}:{n}", args.mainline))
+    if not trees:
+        raise ValueError(f"{path} lists no trees")
+    return trees
+
+
+def fetch_kernel_release() -> dict:
+    with urllib.request.urlopen(KERNEL_ORG_URL, timeout=20) as r:
+        data = json.loads(r.read().decode())
+    mainline = next(x for x in data["releases"] if x["moniker"] == "mainline")
+    latest_stable = data["latest_stable"]["version"]
+    ver = mainline["version"]
+    # mainline version forms: "X.Y" (released) or "X.Y-rcN"
+    m = re.match(r"^(\d+)\.(\d+)(?:-rc(\d+))?$", ver)
+    if not m:
+        raise RuntimeError(f"unexpected mainline version {ver!r}")
+    major, minor = int(m.group(1)), int(m.group(2))
+    rc = int(m.group(3)) if m.group(3) else 0  # 0 = released
+    return {
+        "mainline_version": ver,
+        "devel_cycle": f"{major}.{minor}",
+        "rc": rc,
+        "released": rc == 0,
+        "release_date": mainline["released"]["isodate"],
+        "latest_stable": latest_stable,
+        "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+
+
+def load_state(path: Path) -> dict:
+    if path.exists():
+        return json.loads(path.read_text())
+    return {}
+
+
+def save_state(path: Path, state: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, indent=2) + "\n")
+
+
+def baseline_tag(tree: dict, cycle: str) -> str | None:
+    """The newest pull request tag of the cycle or, early in a cycle, of the
+    newest earlier cycle that has one. Versions are compared as numbers, so
+    a new major version finds the last cycle of the previous one."""
+    prefix = tree["tag_prefix"]
+    pat = re.compile(rf"^{re.escape(prefix)}-for-(\d+)\.(\d+)(?:-|$)")
+    by_ver: dict[tuple[int, int], list[str]] = {}
+    for t in run(["git", "tag", "-l", f"{prefix}-for-*"], cwd=tree["path"]).splitlines():
+        m = pat.match(t)
+        if m:
+            by_ver.setdefault((int(m.group(1)), int(m.group(2))), []).append(t)
+    cur = tuple(int(x) for x in cycle.split("."))
+    older = [v for v in by_ver if v <= cur]
+    if not older:
+        return None
+    # newest by the date of the tagged commit
+    best, best_ts = None, -1
+    for t in by_ver[max(older)]:
+        ts = int(run(["git", "log", "-1", "--format=%ct", t], cwd=tree["path"]))
+        if ts > best_ts:
+            best_ts, best = ts, t
+    return best
+
+
+def fixes_cycle(tree: dict, cycle: str, released: bool) -> str:
+    """The cycle whose fixes branch is active. Once X.Y is released, its fixes
+    branch is closed, and the next version's fixes branch opens during the
+    merge window. The next version number isn't known ahead (X.(Y+1) or a new
+    major), so take the lowest for-*-fixes branch above X.Y if one exists."""
+    if not released:
+        return cycle
+    cur = tuple(int(x) for x in cycle.split("."))
+    pat = re.compile(r"^for-(\d+)\.(\d+)-fixes$")
+    newer = []
+    out = run(["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/for-*-fixes"],
+              cwd=tree["path"])
+    for b in out.splitlines():
+        m = pat.match(b)
+        if m and (int(m.group(1)), int(m.group(2))) > cur:
+            newer.append((int(m.group(1)), int(m.group(2))))
+    return "%d.%d" % min(newer) if newer else cycle
+
+
+def fixes_branch(tree: dict, cycle: str) -> str | None:
+    branch = f"for-{cycle}-fixes"
+    try:
+        run(["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=tree["path"])
+        return branch
+    except subprocess.CalledProcessError:
+        return None
+
+
+def unsent_commits(tree: dict, base: str, branch: str, mainline: str) -> list[UnsentCommit]:
+    # ^mainline drops commits mainline already has, such as those a fixes branch
+    # started from when the baseline tag sits on the devel branch
+    log = run(
+        ["git", "log", f"{base}..{branch}", f"^{mainline}", "--no-merges",
+         "--format=%h%x09%ct%x09%s", "--abbrev=12"],
+        cwd=tree["path"],
+    )
+    if not log:
+        return []
+    now = datetime.now(timezone.utc).timestamp()
+    out = []
+    for line in log.splitlines():
+        sha, ts, subj = line.split("\t", 2)
+        ts = int(ts)
+        age_days = int((now - ts) // 86400)
+        out.append(UnsentCommit(
+            sha12=sha,
+            subject=subj,
+            commit_iso=datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat(),
+            age_days=age_days,
+        ))
+    return out
+
+
+def check_tree(tree: dict, cycle: str, released: bool, fetch: bool, mainline: str) -> dict:
+    path = tree["path"]
+    result: dict = {"tree": tree["name"]}
+    if fetch:
+        try:
+            run(["git", "fetch", "--tags", "--quiet"], cwd=path)
+        except subprocess.CalledProcessError as e:
+            result["fetch_error"] = git_error(e)
+    try:
+        cycle = fixes_cycle(tree, cycle, released)
+        branch = fixes_branch(tree, cycle)
+        if not branch:
+            result.update(fixes_branch=None, note=f"no for-{cycle}-fixes branch")
+            return result
+        base_tag = baseline_tag(tree, cycle)
+        if not base_tag:
+            result.update(fixes_branch=branch, note="no PR tag found as baseline")
+            return result
+        commits = unsent_commits(tree, base_tag, branch, mainline)
+    except subprocess.CalledProcessError as e:
+        result["error"] = git_error(e)
+        return result
+    result.update(fixes_branch=branch, baseline_tag=base_tag,
+                  unsent=[dataclasses.asdict(c) for c in commits])
+    return result
+
+
+def format_report(release: dict, fresh: bool, results: list[dict], stale_days: int) -> str:
+    lines = []
+    cached = "" if fresh else f" [cached, fetched {release['fetched_at']}]"
+    lines.append(
+        f"Kernel state: mainline {release['mainline_version']} "
+        f"(released {release['release_date']}), latest stable {release['latest_stable']}"
+        f"{cached}"
+    )
+    rc = release["rc"]
+    cycle = release["devel_cycle"]
+    if release["released"]:
+        lines.append(f"-> Merge window is OPEN; {cycle} just released. Next devel cycle starts.")
+    else:
+        close = " [CLOSE TO RELEASE]" if rc >= CLOSE_TO_RELEASE_RC else ""
+        lines.append(f"-> Devel cycle {cycle}, currently at rc{rc}{close}")
+    lines.append("")
+
+    any_flag = False
+    for r in results:
+        lines.append(f"== {r['tree']} ==")
+        if r.get("fetch_error"):
+            lines.append(f"  FETCH FAILED: {r['fetch_error']}")
+            any_flag = True
+        if r.get("error"):
+            lines.append(f"  ERROR: {r['error']}")
+            lines.append("")
+            any_flag = True
+            continue
+        if r.get("note"):
+            lines.append(f"  {r['note']}")
+            lines.append("")
+            continue
+        n = len(r["unsent"])
+        lines.append(f"  fixes branch: {r['fixes_branch']}")
+        lines.append(f"  baseline:     {r['baseline_tag']}")
+        lines.append(f"  unsent:       {n} commit(s)")
+        if not n:
+            lines.append("")
+            continue
+        for c in r["unsent"]:
+            flag = ""
+            if c["age_days"] >= stale_days:
+                flag = " STALE"
+                any_flag = True
+            elif rc >= CLOSE_TO_RELEASE_RC and not release["released"]:
+                flag = " (close to release)"
+                any_flag = True
+            lines.append(f"    {c['sha12']}  {c['commit_iso']}  +{c['age_days']:>2}d  "
+                         f"{c['subject']}{flag}")
+        lines.append("")
+
+    if any_flag:
+        lines.append("** ACTION: review flagged items above. **")
+    else:
+        lines.append("No flagged items.")
+    return "\n".join(lines)
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--json", action="store_true", help="emit JSON")
+    p.add_argument("--no-fetch", action="store_true", help="skip git fetch in each tree")
+    p.add_argument("--no-net", action="store_true", help="skip kernel.org refresh")
+    p.add_argument("--stale-days", type=int, default=STALE_DAYS_DEFAULT)
+    p.add_argument("--tree", nargs="+", action="append", metavar="FIELD",
+                   help="NAME PATH [TAG_PREFIX]; repeatable")
+    p.add_argument("--config", metavar="FILE", help="tree list file")
+    p.add_argument("--state", metavar="FILE", help="state file")
+    p.add_argument("--mainline", metavar="REF", default="master",
+                   help="branch in each tree that tracks mainline (default: master)")
+    args = p.parse_args()
+
+    try:
+        trees = load_trees(args)
+    except ValueError as e:
+        print(f"kernel-tree-status: {e}", file=sys.stderr)
+        return 2
+    spath = state_path(args.state)
+
+    state = load_state(spath)
+    fresh = False
+    failed = False
+    if args.no_net:
+        release = state.get("kernel")
+        if not release:
+            print("no cached state and --no-net given", file=sys.stderr)
+            return 2
+    else:
+        try:
+            release = fetch_kernel_release()
+            fresh = True
+        except Exception as e:
+            print(f"kernel.org fetch failed: {e}; falling back to cached state", file=sys.stderr)
+            failed = True
+            release = state.get("kernel")
+            if not release:
+                return 2
+
+    cycle = release["devel_cycle"]
+    results = [check_tree(t, cycle, release["released"], not args.no_fetch, args.mainline)
+               for t in trees]
+    for r in results:
+        for key in ("fetch_error", "error"):
+            if r.get(key):
+                print(f"kernel-tree-status: {r['tree']}: {r[key]}", file=sys.stderr)
+                failed = True
+
+    state["kernel"] = release
+    trees_state = {}
+    for r in results:
+        entry = {
+            "fixes_branch": r.get("fixes_branch"),
+            "baseline_tag": r.get("baseline_tag"),
+            "unsent_count": len(r.get("unsent", [])),
+            "stale_count": sum(1 for c in r.get("unsent", []) if c["age_days"] >= args.stale_days),
+        }
+        if r.get("fetch_error") or r.get("error"):
+            entry["error"] = r.get("error") or r.get("fetch_error")
+        trees_state[r["tree"]] = entry
+    state["trees"] = trees_state
+    if fresh and not failed:
+        state["last_checked_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    save_state(spath, state)
+
+    if args.json:
+        print(json.dumps({"release": release, "fresh": fresh, "trees": results}, indent=2,
+                         default=str))
+    else:
+        print(format_report(release, fresh, results, args.stale_days))
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

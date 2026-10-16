@@ -39,8 +39,8 @@
   a run, and an earlier request to end the same job doesn't turn a later
   suspend into a kill.
 - A sub-agent saying it is waiting is not progress. Check what it waits on.
-- `make` waiting on stdin at a new config prompt looks like a hang. Run
-  `make olddefconfig </dev/null` before building with a changed config.
+- A build waiting at a new config prompt looks like a hang. Avoid the prompt as
+  [review/kernel-build](../review/kernel-build.md#procedure) describes.
 
 ## Pitfalls
 - A failed pull in a background command went unnoticed and produced wrong

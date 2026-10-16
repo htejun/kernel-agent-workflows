@@ -14,6 +14,10 @@ Modules that $MODULES does not enable do not apply. If a step needs one, tell
 the user. If a task needs a parameter the profile leaves unset and it has no
 default, ask the user. Never guess it.
 
+Precedence, highest first: the overlay, an enabled style preset, the module. A
+style preset replaces the writing and coding conventions of the other modules
+where the two differ.
+
 ## Core discipline
 
 How the agent reasons, how much it validates, when it asks, how it waits and how
@@ -21,6 +25,11 @@ it handles risky operations.
 
 - [core/evidence-discipline](core/evidence-discipline.md): diagnosing a failure,
   stating a cause, or making a claim about code, data or a past event.
+- [core/git-safety](core/git-safety.md): committing or amending, adding files to
+  the index, rebasing, resetting or force-pushing a branch, overwriting a tag or
+  a branch, pulling or merging, switching branches with local changes, adding
+  remotes or upstream tracking, or when a git merge, rebase, cherry-pick or am
+  stops on a conflict.
 - [core/safe-operations](core/safe-operations.md): running commands that delete,
   overwrite or force anything, working across several repositories, running
   commands as root, writing working files, or touching a publication tree.
@@ -33,14 +42,103 @@ it handles risky operations.
   builds, test runs, remote jobs, model checks or sub-agents that take more than
   a few seconds.
 
+## Patches
+
+Patch descriptions, code comments, cover letters, tags and line widths.
+
+- [patches/comments-kerneldoc](patches/comments-kerneldoc.md): writing, revising
+  or reviewing code comments or kerneldoc in a patch.
+- [patches/commit-tags](patches/commit-tags.md): writing or checking the tag
+  block of a commit, choosing the commit a Fixes: tag names, deciding on a
+  stable Cc, crediting people in tags, or referring to a commit in prose.
+- [patches/cover-letters](patches/cover-letters.md): writing or revising the
+  cover letter of a patchset, including the changelog of a new version.
+- [patches/line-widths](patches/line-widths.md): writing or editing patch
+  descriptions, code comments or code, or auditing widths before a commit or a
+  posting.
+- [patches/patch-descriptions](patches/patch-descriptions.md): writing, revising
+  or reviewing a commit message or patch description, including its subject
+  line.
+
 ## Review and build checks
 
 checkpatch, build checks, patchset review and formal model checks.
 
+- [review/checkpatch](review/checkpatch.md): running scripts/checkpatch.pl on
+  patches before posting or applying them, or deciding what to do about a
+  checkpatch warning.
 - [review/formal-model-check](review/formal-model-check.md): `$FORMAL_MODEL` is
   `on` and a patchset adds or changes a protocol in which two or more concurrent
   contexts coordinate through shared state, or the user asks for a TLA+ model, a
   TLC run or a herd7 litmus test.
+- [review/kernel-build](review/kernel-build.md): building a kernel, in-tree
+  tools or selftests to check a change, setting up the .config of a new
+  worktree, or deciding whether a change needs a build.
+- [review/patchset-review](review/patchset-review.md): a coherent batch of
+  patches is ready for broader testing or for posting, the user asks for a
+  review of a patch, a commit or a patchset, or review findings need verifying
+  and fixing.
+
+## Mail
+
+Reading threads, sending mail safely, replies and the sent log.
+
+- [mail/lore-thread](mail/lore-thread.md): reading the reviews, feedback or
+  replies on a posting, fetching a patchset or a thread from lore, or looking
+  for a message on a mailing list.
+- [mail/mail-replies](mail/mail-replies.md): drafting any mail or public comment
+  under the user's name: a reply on a mailing list, a review reply to a
+  contributor, an acknowledgment of applied patches, a review ack, or a review
+  marked as AI-generated.
+- [mail/mail-send](mail/mail-send.md): sending any mail, or publishing anything
+  public, such as a push to a shared remote or a GitHub post.
+- [mail/sent-log](mail/sent-log.md): a patch, a patchset or a pull request was
+  just posted, or a task needs the Message-ID, base or version history of an
+  earlier posting.
+- [mail/setup](mail/setup.md): the user has no setup for reading lore threads or
+  sending mail, asks how to set one up, or a mail module needs a tool that is
+  missing.
+- [mail/thread-roots](mail/thread-roots.md): choosing what an outgoing mail
+  threads under: a new version of a patchset, a patch re-posted from a series, a
+  single patch, an acknowledgment, a review reply, or a reply to an automated
+  report.
+
+## Submitting work
+
+Posting patches and patchsets, new versions, dependencies and GitHub pull
+requests.
+
+- [submit/dependent-patchsets](submit/dependent-patchsets.md): posting a patch
+  or patchset that needs another one not yet in the target branch, posting a new
+  version of one, or deciding which branch pending patches go on.
+- [submit/github-pr](submit/github-pr.md): opening or updating a GitHub pull
+  request, writing its title and body, or commenting on, reviewing or approving
+  one.
+- [submit/patchset-posting](submit/patchset-posting.md): preparing or posting a
+  patchset or a new version of one, including RFC and resend postings, or
+  collecting review tags from a previous posting.
+- [submit/single-patch](submit/single-patch.md): posting one patch on its own,
+  re-posting one patch of a posted patchset as a reply, or posting a patch that
+  a tree has already applied.
+
+## Maintaining a tree
+
+Branch model, applying patches, git safety, merges and pull requests.
+
+- [maintain/apply-patches](maintain/apply-patches.md): the user asks to apply
+  posted patches, one patch or a patchset from a mailing list or the inbox, to a
+  tree they maintain, including the for-next merge, the push and the
+  acknowledgment that follow.
+- [maintain/branch-model](maintain/branch-model.md): choosing the branch a patch
+  or change goes to, working out the current release cycle or rc, naming a devel
+  or fixes branch, or checking maintained trees for fixes not yet sent to
+  mainline.
+- [maintain/merges](maintain/merges.md): a merge between branches is about to be
+  made or committed, a merge into for-next conflicts, or a merge commit message
+  needs writing, including one for a back-merge.
+- [maintain/pull-request](maintain/pull-request.md): preparing or sending a pull
+  request from a tree the user maintains to mainline, for fixes during the rc
+  cycle or for the merge window, for one tree or several at once.
 
 ## Debugging
 

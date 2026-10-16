@@ -39,6 +39,26 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   general terms instead, because a reconstructed identifier is often subtly
   wrong and sends the reader to the wrong place.
 
+## [core/git-safety](core/git-safety.md)
+
+- [GATE] Before a commit or amend: $COMMIT_WORD is in the user's instruction for
+  the task, or the commit is a step of an instructed apply or a merge whose
+  message the user confirmed, because the user decides what enters history.
+  $COMMIT_WORD never authorizes applying patches to a publication tree.
+- [GATE] Before a branch-structural operation: the user instructed this
+  operation itself, even when a workflow seems to need it, because it rewrites
+  or mixes branches that other people and trees build on.
+- [GATE] Before resolving a conflict: the user saw the conflicted files and
+  regions and asked for a resolution, even in auto mode, because a resolution
+  decides how two lines of work combine. The one exception is a rebase of the
+  agent's own patches during a rework the user asked for.
+- Add files to the index by name or pattern after reading `git status`, never
+  with `git add -A` or `git add .`, because a working tree holds files that
+  don't belong in the commit.
+- Never `git stash`, and never pull or merge into a tree with uncommitted
+  changes. Stop and ask instead, because a stash keeps work outside any branch
+  and an aborted merge can take uncommitted changes with it.
+
 ## [core/safe-operations](core/safe-operations.md)
 
 - [GATE] Before a destructive or forced operation: look at the target, find out
@@ -83,12 +103,227 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
 - Read the output of every background command and confirm that it succeeded
   before going on, because a silent failure looks like silent success.
 
+## [patches/comments-kerneldoc](patches/comments-kerneldoc.md)
+
+- A comment states what the code can't show: the contract, the invariant, the
+  constraint or the reason behind a non-obvious choice. Never a narration of the
+  code, because narration goes stale with the code and buries the fact the
+  reader needs.
+- A comment gets its final wording in the patch that introduces it, because a
+  rewrite by a later patch in the same patchset makes reviewers read it twice
+  and leaves interim text in the history.
+- [GATE] Before committing a patch: no added comment narrates the code or refers
+  to sibling patches or future plans, because each goes stale as soon as the
+  code or the patchset changes.
+
+## [patches/commit-tags](patches/commit-tags.md)
+
+- Refer to a commit in prose by at least 12 characters of its ID and its quoted
+  subject ([form](patches/commit-tags.md#commit-references)), never by a bare
+  ID, because the subject tells the reader what the commit is and lets them
+  check the ID.
+
+## [patches/cover-letters](patches/cover-letters.md)
+
+- Nothing local goes into a cover letter or anything else an outside reader
+  sees: machine names and sizes, local config options, the names of local test
+  suites, tests held back from the posting, or what ran on which machine,
+  because the reader can't use any of it.
+
+## [patches/line-widths](patches/line-widths.md)
+
+- Fill descriptions, comments and code to $WIDTHS in both directions: no line
+  over its limit, and no line that could still take the first word of the next
+  line, because a paragraph broken short leaves a ragged edge that the next edit
+  reflows, which puts unrelated line changes into that later patch.
+- Check widths with tools/textfill, never by eye, because fills checked by eye
+  drift no matter how often the rule is written down.
+- [GATE] Before committing a patch: `textfill check` passes on the staged draft,
+  and the edited text was reflowed, scoped and kept ASCII, because a fill fixed
+  after the commit needs an amend.
+- [GATE] Before posting a patch or patchset: `textfill check` passes on every
+  patch, exported into a new, empty directory, because a check of the patch just
+  edited misses text written earlier.
+
+## [patches/patch-descriptions](patches/patch-descriptions.md)
+
+- A description says why, not what: who needs the change and why, what it
+  guarantees, and what a reviewer needs to check it, because the diff already
+  shows what changed.
+- A description stands alone in the git history: no names of sibling patches and
+  no "this series", because the patchset around it is gone once it is merged.
+- [GATE] Before committing a patch: the subject follows the tree's convention,
+  the description doesn't narrate the diff, and neither the subject nor the body
+  uses kerneldoc `%` markup, because a maintainer has to fix each by hand or
+  send the patch back.
+
+## [review/checkpatch](review/checkpatch.md)
+
+- checkpatch is advisory: report its findings and never change a patch for one
+  without asking, because many of its warnings are false positives.
+
 ## [review/formal-model-check](review/formal-model-check.md)
 
 - With `$FORMAL_MODEL` on, every multi-actor shared-state protocol a patchset
   adds or changes gets a model check, because reading misses rare interleavings.
 - [GATE] Before trusting a model result: it failed a falsification run and its
   traces replay on the C, because a weak model passes and a wrong one fails.
+
+## [review/kernel-build](review/kernel-build.md)
+
+- [GATE] Before testing, posting or applying a code change: build it with
+  `$BUILD`, the kernel first and then every tool and selftest it touches, and
+  report every warning and error, because a change nobody built breaks the build
+  for everyone who pulls it.
+- Run every build stage through `$BUILD`, never another make command, because
+  the .config and the build artifacts come from `$BUILD`'s compiler and options,
+  and a stage built another way mixes the two.
+
+## [review/patchset-review](review/patchset-review.md)
+
+- Review at milestones: one batch review when a coherent batch is ready for
+  broader testing or for posting, never one per patch, edit or commit update,
+  because a review per edit slows the work and a correction gets a focused check
+  instead.
+- Skip the milestone review only when the user says "skip review", because it
+  catches what building and testing miss before the batch moves on.
+- Judge a finding about patch N against the tree with patches 1..N applied,
+  never the final tree, and report one that a later patch resolves as "valid at
+  N, resolved by N+k", because every patch has to build and work on its own for
+  bisection.
+- Sub-agents inherit the parent's model. Never set a different one, because the
+  user chose the model for the work, and a smaller one misses what the parent
+  would find.
+
+## [mail/lore-thread](mail/lore-thread.md)
+
+- Read every message of a thread before reporting on it. Never filter by an
+  assumed sender, because a bot's review counts like a person's.
+- Report a message or a reply as missing only after reading the relevant threads
+  end to end, because a search that finds nothing says something about the
+  search, not about the mail
+  ([core/evidence-discipline](core/evidence-discipline.md#what-counts-as-evidence)).
+
+## [mail/mail-replies](mail/mail-replies.md)
+
+- A draft under the user's name carries only points the user raised or
+  confirmed, and stays neutral about the user's stance, because the mail speaks
+  for the user.
+- Keep replies short: the point or the ask first, then only what supports it,
+  with no recap, offer or pleasantry, because every extra sentence stands
+  between the reader and the ask.
+- Review replies to contributors ask and suggest instead of ordering, and never
+  ask for tests unless the user asks for that, because the contributor owns the
+  patch and the user decides what to ask of them.
+
+## [mail/mail-send](mail/mail-send.md)
+
+- [GATE] Before a public send: the files and the command pass their checks, a
+  readiness summary presented the exact command, and the user's most recent
+  message contains $SEND_TOKEN as a standalone word, because mail, GitHub posts
+  and pushes to a shared remote, a repository other people work in, can't be
+  recalled. The push of an instructed apply and the signed tag before a pull
+  request don't wait for $SEND_TOKEN.
+- "Post", "send", "ship", "go ahead", "do it", "yes" and "ok" mean prepare and
+  wait, because only $SEND_TOKEN approves a send.
+- Never run a send command expecting a permission prompt to stop it, because
+  running the command is the send and the harness may allow the command without
+  asking.
+- Finish every step but the send before asking for $SEND_TOKEN, because anything
+  composed, pushed or assembled after the approval was never approved.
+- [GATE] Before reporting a mail as sent: the post-send audit found every
+  intended recipient among the envelope recipients, because a send that exits 0
+  can still have dropped recipients.
+- Never edit a mail file once it is sent. A follow-up goes in a new file, and a
+  file whose send status is unknown counts as sent, because the file is the
+  record of what went out.
+
+## [mail/sent-log](mail/sent-log.md)
+
+- Take the Message-ID of a posting from the send itself or the local sent copy,
+  never from lore, because lore can lag the send and a guessed ID is wrong.
+
+## [mail/thread-roots](mail/thread-roots.md)
+
+- [GATE] Before setting a mail's thread root: take the first matching case of
+  the precedence. A full patchset version starts a fresh thread, a patch
+  re-posted from a series replies to its own original, an acknowledgment replies
+  to the original posting, and a standalone patch that could go under an
+  existing discussion is the user's call, because a mail under the wrong root is
+  lost to the readers of its thread.
+
+## [submit/dependent-patchsets](submit/dependent-patchsets.md)
+
+- [GATE] Before posting a dependent patchset: the prerequisite went out first
+  and the dependent cover links it on lore, because reviewers can't apply or
+  judge the dependent patchset without it.
+- Keep pending and unposted patches on topic branches, never on a tree's devel
+  or fixes branch, because those branches change only when reviewed patches are
+  applied.
+
+## [submit/github-pr](submit/github-pr.md)
+
+- [GATE] Before opening a GitHub pull request: the branch builds, the
+  repository's formatter and lock files are current, the patchset review ran
+  unless the user said "skip review", and the user saw the title and body,
+  because CI and reviewers act on the first push.
+- A pull request body is a short summary and an itemized commit list, because a
+  dense body on a web page gets skipped.
+
+## [submit/patchset-posting](submit/patchset-posting.md)
+
+- [GATE] Before posting a patch or patchset: checkpatch ran, the patchset review
+  ran unless the user said "skip review", every description passed its
+  checklist, and the recipients come from MAINTAINERS and $TREES, because a
+  posted patch can't be recalled.
+
+## [maintain/apply-patches](maintain/apply-patches.md)
+
+- Run `git am` or any other patch tool, in any tree, only when the user asked
+  for that operation, and apply to a publication tree only on "apply" or an
+  unambiguous equivalent such as "put it in for-X.Y-fixes". A posted patch waits
+  for that word, because the user decides what enters a tree.
+- [GATE] Before applying a patch: the thread was read, the patches were
+  reviewed, no other tree took them, and the user approved the patches and the
+  target branch, because undoing a wrong apply on a published branch takes a
+  force push or a revert.
+- [GATE] Before pushing applied patches: every commit message was read in full
+  and has exactly one Signed-off-by from $IDENTITY, plus the author's on a
+  contributor patch, and the build passed, because a missing committer sign-off
+  on a public branch violates the DCO.
+- Push the applied branches without a pause to confirm, because the apply
+  instruction covers the push and the server rejects a push that doesn't
+  fast-forward.
+- Acknowledge every apply, the user's own patches included, through the send
+  gate of [mail/mail-send](mail/mail-send.md#before-a-public-send), because the
+  thread learns where the patches went only from the acknowledgment.
+
+## [maintain/branch-model](maintain/branch-model.md)
+
+- Take the release cycle from $TREE_STATE and branch names from the tree's own
+  clone in $TREES, never from memory or from a same-named branch in a scratch
+  tree or worktree, because the rc changes every week and a stale copy of a
+  branch hides work that already landed.
+
+## [maintain/merges](maintain/merges.md)
+
+- [GATE] Before committing a merge: conflicts were resolved from the commits on
+  both sides and verified on every path, and the user confirmed the message
+  unless it is git's default one for for-next, because a resolution read from
+  the 3-way diff alone can build and still drop a change.
+- Never resolve a conflict on for-next. Abort, resolve in the devel branch and
+  merge that into for-next, because for-next is rebuilt freely and must stay a
+  plain union of the real branches.
+
+## [maintain/pull-request](maintain/pull-request.md)
+
+- [GATE] Before creating a pull request tag: the base, the commits, the
+  test-merge build, the names and the diffstat were verified, because a
+  published tag can never be moved or deleted.
+- [GATE] Before sending a pull request: the tag is pushed, `git request-pull`
+  exits 0, and the mail body is its output verbatim, because mainline pulls
+  exactly what the public tag holds, and a failing request-pull means the tag
+  there doesn't match.
 
 ## [debug/bug-report-triage](debug/bug-report-triage.md)
 

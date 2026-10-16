@@ -411,6 +411,9 @@ def gen_index(mods):
     out += wrap('Modules that $MODULES does not enable do not apply. If a step needs one, '
                 'tell the user. If a task needs a parameter the profile leaves unset and '
                 'it has no default, ask the user. Never guess it.') + ['']
+    out += wrap('Precedence, highest first: the overlay, an enabled style preset, the '
+                'module. A style preset replaces the writing and coding conventions of '
+                'the other modules where the two differ.') + ['']
     for area, title, _, desc in AREAS:
         here = sorted((m for m in mods if m['area'] == area), key=lambda m: m['name'])
         if not here:

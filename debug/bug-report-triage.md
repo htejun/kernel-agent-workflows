@@ -5,6 +5,12 @@
   of AI-generated findings, even when nobody calls it triage.
 - **Parameters:** `$SCRATCH`
 - **Depends on:** [core/evidence-discipline](../core/evidence-discipline.md),
+  [core/git-safety](../core/git-safety.md),
+  [patches/patch-descriptions](../patches/patch-descriptions.md),
+  [patches/commit-tags](../patches/commit-tags.md),
+  [review/patchset-review](../review/patchset-review.md),
+  [mail/mail-send](../mail/mail-send.md),
+  [submit/patchset-posting](../submit/patchset-posting.md),
   [debug/event-tracing](../debug/event-tracing.md)
 
 This module turns one bug report or a batch of findings into verdicts, and
@@ -29,8 +35,9 @@ every patch.
       in the cover letter ([Reproducer tiers](#reproducer-tiers)).
 - [ ] The verification table lists each patch's tier, its signal before the
       fix and its silence after the fix.
-- [ ] The general posting gates of submit/patchset-posting and
-      review/patchset-review pass as well.
+- [ ] The general posting gates of
+      [submit/patchset-posting](../submit/patchset-posting.md#before-posting-a-patch-or-patchset)
+      and [review/patchset-review](../review/patchset-review.md) pass as well.
 
 ## Procedure
 A batch starts at step 1. A single report starts at step 5.
@@ -134,11 +141,17 @@ A batch starts at step 1. A single report starts at step 5.
 17. Keep a table of every original finding, its bucket and its one-line
     reason in `$SCRATCH/<batch>/outcomes.md`, current as the work goes, so
     the user can audit it and ask for the status at any time.
-18. Write each description per [Patch descriptions](#patch-descriptions).
-19. Before rebasing the patchset, keep the old branch under another name to
-    compare the rebased patchset against.
+18. Write each description as
+    [patches/patch-descriptions](../patches/patch-descriptions.md#by-kind-of-patch)
+    gives for a fix for a reported bug, and credit the reporter with
+    Reported-by: as
+    [patches/commit-tags](../patches/commit-tags.md#attribution-tags) gives.
+19. Before rebasing the patchset, keep the old branch as
+    [core/git-safety](../core/git-safety.md#before-rewriting-a-branch)
+    describes.
 20. Verify the [GATE] checklist, then post the patchset per
-    submit/patchset-posting and mail/mail-send.
+    [submit/patchset-posting](../submit/patchset-posting.md#posting-a-patchset)
+    and [mail/mail-send](../mail/mail-send.md#the-send-flow).
 
 ## Reference
 ### Report formats
@@ -220,19 +233,6 @@ symptom gone and a few only show the guard firing, say so.
 - A benign data race: a stale value is allowed. Fix: `READ_ONCE()`,
   `WRITE_ONCE()` or `data_race()`, which only silence the tooling. They
   never fix missing locking around an invariant that spans several fields.
-
-### Patch descriptions
-General description style is in patches/patch-descriptions. For fixes from
-reports:
-- State the bug, the fix and any collateral change that isn't obvious, such
-  as a reworked `if` block or a renamed parameter. The length follows the
-  complexity of the bug.
-- Leave out how the subsystem works. The reader knows its locking and its
-  macros.
-- The bug exists, so no "could potentially" wording.
-- Credit the person who sent an AI-generated report with Reported-by:, not
-  the tool. Copy the name and address from the reporter's recent commits or
-  mail, because a current signature can differ from older ones.
 
 ## Customization
 - `$SCRATCH` sets where the outcomes table goes. An overlay can move it.
