@@ -292,7 +292,7 @@ their way back up. Resolve them in place, one patch at a time.
 3. To reorder, pop below the patches that move, edit the series file, then
    push them one at a time, refreshing each whose context moved.
 4. Rename an identifier one file at a time with explicit edits
-   ([core/safe-operations](../core/safe-operations.md#editing-files)).
+   ([core/safe-operations](../core/safe-operations.md#before-editing-a-code-or-patch-file)).
    Across patches, pop to the patch that introduces the name, change it
    there and refresh, then push each later patch, change its uses and
    refresh it.

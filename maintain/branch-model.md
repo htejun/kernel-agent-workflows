@@ -44,7 +44,7 @@
    master..for-X.Y-fixes`.
 3. Repeat for every maintained tree in $TREES that has a fixes branch for
    the cycle. Each tree's commands run in their own shell call
-   ([core/safe-operations](../core/safe-operations.md#working-across-repositories)).
+   ([core/safe-operations](../core/safe-operations.md#before-a-shell-command-that-targets-a-repository)).
 
 ## Reference
 ### Branch lifecycle

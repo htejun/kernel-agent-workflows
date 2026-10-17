@@ -246,8 +246,10 @@ Subsystem-specific rules and testing. Opt-in.
   verifier's instruction or stack limit, or needs veristat.
 - [subsys/sched-ext](subsys/sched-ext.md): changing sched_ext in the kernel
   (kernel/sched/ext, include/linux/sched/ext.h, tools/sched_ext and its
-  selftests) or a BPF scheduler in the scx repository, testing, tracing or
-  debugging a sched_ext scheduler, or reviewing such a change.
+  selftests) or a BPF scheduler in the scx repository, any other work in the scx
+  repository (header syncs, vmlinux.h updates, releases, dependency updates),
+  testing, tracing or debugging a sched_ext scheduler, or reviewing such a
+  change.
 
 ## Agent notes
 

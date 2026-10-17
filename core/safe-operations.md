@@ -21,6 +21,19 @@
   privileged mistake on a shared machine can't be undone.
 - Keep working files under $SCRATCH, never in /tmp or a per-session
   directory, because a remount or the end of a session loses them.
+- [GATE] Before editing a code or patch file: the edit is an explicit
+  replacement in that one file, never sed, awk or perl run in place,
+  because a pattern that matches more than intended changes code nobody
+  reviewed.
+- [GATE] Before a shell command that targets a repository: it starts in
+  that repository, touches no second one, and runs alone if it changes
+  directory, because parallel calls can share one shell and the last
+  change of directory wins.
+- Never edit a generated file by hand. Change its inputs or its generator,
+  regenerate it, and check the generated diff for unrelated changes.
+- Work the user and the agent do together happens in place. A task the
+  user sends the agent off to do gets its own git worktree under
+  $WORKTREE_ROOT.
 
 ## [GATE] Checklist
 ### Before a destructive or forced operation
@@ -32,24 +45,28 @@
       already names it
       ([core/stop-and-ask](../core/stop-and-ask.md#genuine-blockers)).
 
-## Procedure
-### Working across repositories
-1. Start every shell command that targets a repository by changing to that
-   repository's directory, or pass the directory with `git -C`.
-2. Never chain commands for two repositories in one shell call.
-3. A shell call that changes directory runs alone, never in parallel with
-   other calls. Parallel calls can share one shell, so the last change of
-   directory wins.
-4. "pathspec did not match", "does not exist in index" or a reset working
-   directory means a command may have run in the wrong place. Stop and check
-   the current directory.
+### Before editing a code or patch file
+- [ ] The edit is an explicit replacement made with the editor tool, one
+      file at a time.
+- [ ] A replace-all covers only a pattern verified unambiguous in that one
+      file.
+- [ ] No sed, awk or perl runs in place over the file. A rename across
+      several files is one explicit edit per file.
+
+### Before a shell command that targets a repository
+- [ ] The command starts by changing to that repository's directory, or
+      passes the directory with `git -C`.
+- [ ] It chains no command for a second repository.
+- [ ] If it changes directory, it runs alone, never in parallel with other
+      calls.
+- [ ] After "pathspec did not match", "does not exist in index" or a reset
+      working directory, the work stopped and the current directory was
+      checked, because a command may have run in the wrong place.
 
 ## Reference
 ### Working files
 - Create the topic's directory under $SCRATCH at the start of a task, and
   check each path before writing to it.
-- A task the user sends the agent off to do gets its own git worktree under
-  $WORKTREE_ROOT. Work the user and the agent do together happens in place.
 
 ### Publication trees
 Publication trees are for reading code, looking up branches and commit IDs,
@@ -57,13 +74,6 @@ and preparing and sending patches and pull requests. No builds, config
 changes, instrumentation, VM runs or test checkouts happen there. The builds
 that are part of publishing do run there: the build of a patch just applied
 to the tree, and the test merge and build of a pull request.
-
-### Editing files
-- Edit code and patch files with explicit replacements, one file at a time.
-  Never run sed, awk or perl in place over them, because a pattern that
-  matches more than intended changes code nobody reviewed.
-- Never edit a generated file by hand. Change its inputs or its generator,
-  regenerate it, and check the generated diff for unrelated changes.
 
 ### Commands to treat with care
 - Scripts don't run sudo themselves unless the user asks for it, so that

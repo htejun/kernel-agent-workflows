@@ -13,6 +13,8 @@
 - Verify a feature with the quickest adequate check. Existing tests, small
   scripts and temporary probes are fine, because framework integration and
   submission-ready tests are separate work that the user asks for.
+- Local test patches stay in the development branch until the user asks to
+  drop them, because the user still runs them.
 
 ## Procedure
 1. Name the decision the validation must support and the kind of check it
@@ -46,8 +48,6 @@
 - A new build needs its identity recorded, not nested snapshots or
   manifests. Extra hashes and provenance checks are for a concrete ambiguity
   or an explicit requirement.
-- Local test patches stay in the development branch until the user asks to
-  drop them.
 - Serious kernel failures still stop the affected run, and their logs and
   crash state must be kept. A budget never authorizes unsafe cleanup or
   data loss.

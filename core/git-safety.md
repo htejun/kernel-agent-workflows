@@ -23,11 +23,12 @@
   regions and asked for a resolution, even in auto mode, because a
   resolution decides how two lines of work combine. The one exception is a
   rebase of the agent's own patches during a rework the user asked for.
-- [GATE] Before presenting a conflict or proposing its resolution: show
-  where it came from, which commits on each side collide and how, and per
-  commit how the resolution keeps its intention, auto-merged hunks
-  included, because a check against the marked region or an earlier
-  adaptation inherits whatever they missed.
+- [GATE] Before a merge where both sides have new commits: every commit on
+  each side since the merge base that touches the affected code is
+  inventoried and cross-checked against the other side in both directions,
+  conflicted or clean, because git merges code that the other side's
+  changes made wrong without a marker. A fast-forward, or a merge that only
+  pulls commits a checked merge already brought together, needs no check.
 - Add files to the index by name or pattern after reading `git status`,
   never with `git add -A` or `git add .`, because a working tree holds files
   that don't belong in the commit.
@@ -75,21 +76,39 @@
       wrote was shown to the user first
       ([rebasing the agent's own patches](#rebasing-the-agents-own-patches)).
 
-### Before presenting a conflict or proposing its resolution
-- [ ] Where each conflict came from: the incoming commits, and the target
-      commits since `git merge-base --all`, that touch the conflicted code
-      or the logic the incoming commits change. Find them per function with
-      `git log -L '/^<function>(/,/^}/:<file>'` and read them in full. The
-      `git log -L :<function>:<file>` form can match the wrong definition
-      and report nothing.
-- [ ] How they collide: for each pair, what each commit intended and what
-      of the other it breaks, invalidates or depends on, including hunks
-      git merged without a marker.
-- [ ] A resolution that keeps the intention of every involved commit,
-      shown commit by commit.
-- [ ] The resolution's commit message explains each conflict: the commits
-      on both sides, their intents, and how the resolution satisfies each
-      ([maintain/merges](../maintain/merges.md#message-shapes)).
+### Before a merge where both sides have new commits
+- [ ] The check runs before the merge is made or any resolution proposed,
+      and its result goes into the merge message.
+- [ ] Scope: per side, every commit since `git merge-base --all` that
+      touches the affected code: the files either side changed, the
+      headers and includes they share, and the files whose behavior the
+      incoming code relies on. The target's merge commits count, because
+      their resolutions carry intent. Each commit's message and diff were
+      read in full. A subsystem module or an overlay can name the
+      subsystem's scope.
+- [ ] Inventory per commit: its intent, and every fact that can bear on
+      the other side's code. Convention changes: renames, a reference split
+      in two, new accessors or wrappers, changed locking or ordering rules,
+      a flag or field whose meaning changed. Moved or new code: a function
+      moved, logic consolidated or split, a new chunk copied from or added
+      beside existing code. Changed contracts: preconditions, locking
+      state, return values, arguments, caller expectations. New uses of
+      shared state: fields, flags, helpers, call sites. Removals.
+- [ ] Cross-check of every pair in both directions: each commit's added
+      code, and the code it relies on, against every item of the other
+      side's inventory. New code takes the other side's conventions. An
+      update to a chunk the other side copied, moved or added a sibling of
+      is carried to it. Code that relies on a changed contract, or calls a
+      removed or redefined helper, is adapted. Consolidated logic takes the
+      change once, split handling takes it on every path that carries the
+      case.
+- [ ] An adaptation the check finds is a conflict, in a clean merge too,
+      and stops the work like one
+      ([when a conflict appears](#when-a-conflict-appears)).
+- [ ] The resolution keeps every commit's intent. Each adaptation, marked
+      by git or not, is a Conflicts bullet in the merge message, naming the
+      commits on both sides, their intents and how the resolution keeps
+      both ([maintain/merges](../maintain/merges.md#message-shapes)).
 - [ ] No item rests on a clean auto-merge, a line count, or a byte match
       with an earlier adaptation of the same patches.
 
@@ -108,6 +127,27 @@
 2. Present the gap and the options: a back-merge, a different target branch,
    or deferring the patch.
 
+### Cross-checking both sides of a merge
+Mechanical aids find candidates. The full read of each commit decides.
+1. Find the merge base with `git merge-base --all` and list each side's
+   commits in scope, merge commits included.
+2. Read each commit's message and diff in full and write down its
+   inventory.
+3. For convention changes, tally recurring old and new token pairs in
+   `git log --no-merges -p --word-diff=porcelain <base>..<side> -- <scope>`,
+   then grep the other side's added lines (`git diff <base>..<other> --
+   <scope>`) for the old forms.
+4. For a chunk one side changed, trace it per function with
+   `git log -L '/^<function>(/,/^}/:<file>'`. The
+   `git log -L :<function>:<file>` form can match the wrong definition and
+   report nothing.
+5. A large side can be split by commit range across read-only sub-agents,
+   each inventorying its share and cross-checking it against the other
+   side. Verify every hit before using it.
+6. Present the result before any resolution: each adaptation with the
+   commits on both sides, their intents and the proposed change, or that
+   the check found none.
+
 ### When a conflict appears
 1. A conflict in a merge into for-next goes to
    [maintain/merges](../maintain/merges.md#a-conflict-on-for-next).
@@ -117,18 +157,21 @@
 3. Any other conflict, from `git merge`, `git cherry-pick`, `git am` or a
    rebase of anyone else's work, stops the work, even in auto mode.
 4. Present the conflicted files, each conflicting region, and where each
-   conflict came from
-   ([the checklist](#before-presenting-a-conflict-or-proposing-its-resolution)),
-   then wait.
+   conflict came from: for a merge, the result of the cross-side check
+   ([the checklist](#before-a-merge-where-both-sides-have-new-commits)), and
+   for a cherry-pick, an am or a rebase, the target commits that touch the
+   conflicted code ([resolving a conflict](#resolving-a-conflict)). Then
+   wait.
 5. If the user asks, abort with the command's `--abort`.
 6. When the user asks for a resolution, follow
    [resolving a conflict](#resolving-a-conflict).
 
 ### Resolving a conflict
-1. Find the commits on each side that touch the conflicted code or the
-   logic the incoming commits change, per function, as
-   [the checklist](#before-presenting-a-conflict-or-proposing-its-resolution)
-   describes. Read their diffs in full.
+1. For a merge, start from the cross-side check's inventories. For a
+   cherry-pick, an am or a rebase, find the target commits since the
+   patch's base that touch the conflicted code or the logic the incoming
+   commits change, per function with
+   `git log -L '/^<function>(/,/^}/:<file>'`, and read their diffs in full.
 2. State what each commit intended, and for each pair, what of the other it
    breaks, invalidates or depends on.
 3. For every incoming commit, state the behavior it changes and find what
@@ -195,7 +238,7 @@ require it:
 - Work is committed before switching branches, under the commit gate above,
   instead of being stashed.
 - Where the work happens, in place or in its own worktree, is in
-  [core/safe-operations](../core/safe-operations.md#working-files).
+  [core/safe-operations](../core/safe-operations.md#always-on-rules).
 
 ## Pitfalls
 - A one-sided conflict can hide an auto-merged copy. One side renamed a
@@ -205,6 +248,11 @@ require it:
   Taking the target's side of the conflict alone would have broken the
   build. Reading both sides' commits showed that the rename belonged at the
   function's new home.
+- A clean merge can still need an adaptation. A target commit had split
+  the references to the running task into two, and an incoming fix, in
+  code git merged without a marker, still used the old single reference,
+  now the wrong one. The conflicted regions held nothing of it. The
+  inventory of every target commit found it.
 - A byte match is a line check too. A proposed resolution once named only
   the commit behind the marked region and was justified by a byte match with
   an earlier adapted copy of the same patches. That copy's misses came

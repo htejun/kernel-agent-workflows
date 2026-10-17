@@ -9,8 +9,10 @@ apply.
 
 Rules marked [GATE] guard the named action. They apply in every mode, within the
 scope of the task the user authorized, and they never turn a smoke test into
-exhaustive validation. The other rules are standing preferences: when one
-collides with a task's mechanics, work the mechanics out instead of stopping.
+exhaustive validation. Before that action, read the module and verify every item
+of its "[GATE] Checklist" group for the action, with the overlay's additions.
+The other rules are standing preferences: when one collides with a task's
+mechanics, work the mechanics out instead of stopping.
 
 ## [When editing kernel-agent-workflows](CONTRIBUTING.md)
 
@@ -57,11 +59,12 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   regions and asked for a resolution, even in auto mode, because a resolution
   decides how two lines of work combine. The one exception is a rebase of the
   agent's own patches during a rework the user asked for.
-- [GATE] Before presenting a conflict or proposing its resolution: show where it
-  came from, which commits on each side collide and how, and per commit how the
-  resolution keeps its intention, auto-merged hunks included, because a check
-  against the marked region or an earlier adaptation inherits whatever they
-  missed.
+- [GATE] Before a merge where both sides have new commits: every commit on each
+  side since the merge base that touches the affected code is inventoried and
+  cross-checked against the other side in both directions, conflicted or clean,
+  because git merges code that the other side's changes made wrong without a
+  marker. A fast-forward, or a merge that only pulls commits a checked merge
+  already brought together, needs no check.
 - Add files to the index by name or pattern after reading `git status`, never
   with `git add -A` or `git add .`, because a working tree holds files that
   don't belong in the commit.
@@ -121,6 +124,17 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   mistake on a shared machine can't be undone.
 - Keep working files under $SCRATCH, never in /tmp or a per-session directory,
   because a remount or the end of a session loses them.
+- [GATE] Before editing a code or patch file: the edit is an explicit
+  replacement in that one file, never sed, awk or perl run in place, because a
+  pattern that matches more than intended changes code nobody reviewed.
+- [GATE] Before a shell command that targets a repository: it starts in that
+  repository, touches no second one, and runs alone if it changes directory,
+  because parallel calls can share one shell and the last change of directory
+  wins.
+- Never edit a generated file by hand. Change its inputs or its generator,
+  regenerate it, and check the generated diff for unrelated changes.
+- Work the user and the agent do together happens in place. A task the user
+  sends the agent off to do gets its own git worktree under $WORKTREE_ROOT.
 
 ## [core/stop-and-ask](core/stop-and-ask.md)
 
@@ -138,6 +152,8 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
 - Verify a feature with the quickest adequate check. Existing tests, small
   scripts and temporary probes are fine, because framework integration and
   submission-ready tests are separate work that the user asks for.
+- Local test patches stay in the development branch until the user asks to drop
+  them, because the user still runs them.
 
 ## [core/waits-and-long-ops](core/waits-and-long-ops.md)
 
@@ -367,10 +383,11 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
 
 ## [maintain/merges](maintain/merges.md)
 
-- [GATE] Before committing a merge: conflicts were resolved from the commits on
-  both sides and verified on every path, and the user confirmed the message
-  unless it is git's default one for for-next, because a resolution read from
-  the 3-way diff alone can build and still drop a change.
+- [GATE] Before committing a merge: the cross-side check ran, every adaptation
+  it found was resolved from the commits on both sides and verified on every
+  path, marked by git or not, and the user confirmed the message unless it is
+  git's default one for for-next, because a resolution read from the 3-way diff
+  alone can build and still drop a change.
 - Never resolve a conflict on for-next. Abort, resolve in the devel branch and
   merge that into for-next, because for-next is rebuilt freely and must stay a
   plain union of the real branches.
@@ -520,8 +537,12 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
 - Leave out every word that doesn't change what the reader understands, show-off
   tone included, because each one stands between the reader and the point
   ([details](style/voice.md#what-to-leave-out)).
+- Name the goal, not one of many literal commands or values that reach it,
+  because the reader picks the means
+  ([details](style/voice.md#what-to-leave-out)).
 - An edit the user makes to the agent's prose counts as a correction, said or
-  not, because otherwise the user makes the same edit again
+  not, and a convention once recorded is never searched for again, because
+  otherwise the user makes the same edit again
   ([details](style/voice.md#after-an-edit-or-a-critique)).
 - [GATE] Before showing prose: no paragraph runs past 8 lines, and the text has
   the length its kind calls for, because a longer paragraph can't be taken in at
@@ -585,6 +606,8 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
 
 ## [agents/claude](agents/claude.md) (opt-in)
 
-- Write content the agent authors with the Edit and Write tools, never through a
-  heredoc or shell redirection, because the tools show the exact change and
-  track the file's state. Redirecting a command's own output to a file is fine.
+- Read files with the Read tool whenever possible. Write content the agent
+  authors with the Edit and Write tools, never through a heredoc or shell
+  redirection, because the tools show the exact change and track the file's
+  state. Redirecting a command's own output to a file is fine. `replace_all`
+  only for a pattern verified unambiguous in that one file.

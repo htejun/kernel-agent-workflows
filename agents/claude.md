@@ -12,10 +12,11 @@
 Quirks of the Claude Code harness that the other modules' rules depend on.
 
 ## Always-on rules
-- Write content the agent authors with the Edit and Write tools, never
-  through a heredoc or shell redirection, because the tools show the exact
-  change and track the file's state. Redirecting a command's own output to
-  a file is fine.
+- Read files with the Read tool whenever possible. Write content the agent
+  authors with the Edit and Write tools, never through a heredoc or shell
+  redirection, because the tools show the exact change and track the
+  file's state. Redirecting a command's own output to a file is fine.
+  `replace_all` only for a pattern verified unambiguous in that one file.
 
 ## Reference
 ### Shell calls
@@ -29,7 +30,7 @@ Quirks of the Claude Code harness that the other modules' rules depend on.
   Short commands such as ssh and scp run in the foreground. For work the
   harness can't see, the Monitor tool runs the bounded checks.
 - Bash calls sent in one response are the parallel calls of
-  [core/safe-operations](../core/safe-operations.md#working-across-repositories).
+  [core/safe-operations](../core/safe-operations.md#before-a-shell-command-that-targets-a-repository).
 - The Edit and Write tools strip trailing whitespace from the lines they
   write. A mail signature's `-- ` becomes `--`
   ([mail/mail-compose](../mail/mail-compose.md#building-a-mail-file)), and

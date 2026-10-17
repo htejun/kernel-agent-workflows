@@ -104,9 +104,11 @@
     ([core/safe-operations](../core/safe-operations.md#publication-trees)).
 13. On the for-X.Y preset, merge the target branch into for-next with a plain
     merge and git's default message, such as
-    `git checkout for-next && git merge <target>`. If the merge conflicts,
-    abort it and follow
-    [maintain/merges](../maintain/merges.md#a-conflict-on-for-next). A merge
+    `git checkout for-next && git merge <target>`, after the cross-side
+    check that
+    [maintain/merges](../maintain/merges.md#a-conflict-on-for-next) calls
+    for. If the check finds an adaptation or the merge conflicts, follow
+    that section. A merge
     into the devel branch is a back-merge and needs the user's instruction
     ([core/git-safety](../core/git-safety.md#branch-structural-operations)).
     A tree on another preset updates the branches its $TREES entry names

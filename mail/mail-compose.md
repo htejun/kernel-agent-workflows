@@ -46,7 +46,8 @@ Who sends the result is in
    an editor or a file-writing tool stripped its trailing space, restore it
    with an explicit edit of that one line, never an in-place substitution
    over the file
-   ([core/safe-operations](../core/safe-operations.md#editing-files)), and
+   ([core/safe-operations](../core/safe-operations.md#before-editing-a-code-or-patch-file)),
+   and
    check again.
 
 ### The git send-email command

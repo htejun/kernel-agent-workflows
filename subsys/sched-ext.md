@@ -2,8 +2,9 @@
 
 - **Load when:** changing sched_ext in the kernel (kernel/sched/ext,
   include/linux/sched/ext.h, tools/sched_ext and its selftests) or a BPF
-  scheduler in the scx repository, testing, tracing or debugging a
-  sched_ext scheduler, or reviewing such a change.
+  scheduler in the scx repository, any other work in the scx repository
+  (header syncs, vmlinux.h updates, releases, dependency updates), testing,
+  tracing or debugging a sched_ext scheduler, or reviewing such a change.
 - **Parameters:** none
 - **Depends on:** [subsys/bpf](../subsys/bpf.md),
   [core/git-safety](../core/git-safety.md),
@@ -136,6 +137,13 @@ recipes for testing, tracing and reviewing schedulers.
   ([code/kernel-idioms](../code/kernel-idioms.md#defensive-code-and-warns))
   is `scx_error()`.
 - Prose calls an instance of `struct scx_sched` a sched.
+
+### Merges
+The scope of the cross-side check before a merge
+([core/git-safety](../core/git-safety.md#before-a-merge-where-both-sides-have-new-commits))
+in a sched_ext tree is `kernel/sched/ext/*`, `kernel/sched/sched.h`,
+`include/linux/sched/ext.h`, the tools headers synced from them, and
+`kernel/sched/core.c` where the incoming code relies on core behavior.
 
 ### Sub-schedulers
 - A parent's `ops.sub_attach()` for a cgroup never runs before

@@ -442,7 +442,9 @@ def gen_core(contrib_rules, mods):
                 'not enable do not apply.') + ['']
     out += wrap('Rules marked [GATE] guard the named action. They apply in every mode, '
                 'within the scope of the task the user authorized, and they never turn a '
-                'smoke test into exhaustive validation. The other rules are standing '
+                'smoke test into exhaustive validation. Before that action, read the '
+                'module and verify every item of its "[GATE] Checklist" group for the '
+                'action, with the overlay\'s additions. The other rules are standing '
                 'preferences: when one collides with a task\'s mechanics, work the '
                 'mechanics out instead of stopping.') + ['']
     out += ['## [When editing kernel-agent-workflows](CONTRIBUTING.md)', '']

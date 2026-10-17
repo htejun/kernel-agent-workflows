@@ -13,8 +13,9 @@ When a conflict stops the work and how to resolve one is in
 module covers conflicts on for-next, making a merge and merge messages.
 
 ## Always-on rules
-- [GATE] Before committing a merge: conflicts were resolved from the
-  commits on both sides and verified on every path, and the user confirmed
+- [GATE] Before committing a merge: the cross-side check ran, every
+  adaptation it found was resolved from the commits on both sides and
+  verified on every path, marked by git or not, and the user confirmed
   the message unless it is git's default one for for-next, because a
   resolution read from the 3-way diff alone can build and still drop a
   change.
@@ -24,10 +25,11 @@ module covers conflicts on for-next, making a merge and merge messages.
 
 ## [GATE] Checklist
 ### Before committing a merge
-- [ ] For a conflicted merge, the commits on each side that produced each
-      conflict are named with what each intended, and the merged code has
-      each incoming change's behavior on every path, including hunks git
-      merged without a marker and code the target moved to another file
+- [ ] When both sides have new commits, the cross-side check ran
+      ([core/git-safety](../core/git-safety.md#before-a-merge-where-both-sides-have-new-commits)),
+      and the merged code keeps every commit's behavior on every path,
+      including adaptations git merged without a marker and code the
+      target moved to another file
       ([core/git-safety](../core/git-safety.md#resolving-a-conflict)).
 - [ ] The resolution changes only what reconciles the two sides.
 - [ ] A merge into for-next holds no conflict resolution
@@ -39,9 +41,13 @@ module covers conflicts on for-next, making a merge and merge messages.
 
 ## Procedure
 ### A conflict on for-next
-1. When the merge of any branch into for-next conflicts, run
-   `git merge --abort` at once, without waiting to be asked, because
-   for-next never holds a resolution.
+1. Before the merge of a branch into for-next, run the cross-side check,
+   a clean merge included: a fixes branch meets the devel branch's commits
+   first there. A merge that only pulls commits a checked merge already
+   brought together, such as a devel branch whose fixes merge was checked,
+   needs none. When the check finds an adaptation, don't make the merge.
+   When the merge conflicts, run `git merge --abort` at once, without
+   waiting to be asked. Either way for-next holds no resolution.
 2. Present the merge that resolves the conflict in the devel branch
    instead. When a fixes branch conflicts with the devel branch, that is
    the fixes branch merged into the devel branch
@@ -57,11 +63,15 @@ module covers conflicts on for-next, making a merge and merge messages.
 1. If the target has no commits the source lacks (`git log TARGET ^SOURCE`
    prints nothing), fast-forward instead of making a merge commit with
    `--no-ff`.
-2. Merge without committing (`git merge --no-commit`) unless it is a
+2. Run the cross-side check
+   ([core/git-safety](../core/git-safety.md#cross-checking-both-sides-of-a-merge))
+   and present its result.
+3. Merge without committing (`git merge --no-commit`) unless it is a
    for-next merge with git's default message.
-3. Draft the message, present it and wait for the user's confirmation. The
+4. Draft the message, with a Conflicts bullet for every adaptation the
+   check found, present it and wait for the user's confirmation. The
    authorization for the merge doesn't approve its message.
-4. Commit with `git commit -F <file>`.
+5. Commit with `git commit -F <file>`.
 
 ## Reference
 ### Merge messages
@@ -138,9 +148,9 @@ The conflicts form a list:
   sides with `<sha12> ("subject")` and what each intended, then states how
   the resolution keeps each intention: "Kept both, the wait after the
   clear, so that ..." or "Dropped the old file's side and applied the
-  rename at the new home." Hunks git merged without a marker get a bullet
-  too:
-  ([core/git-safety](../core/git-safety.md#before-presenting-a-conflict-or-proposing-its-resolution)).
+  rename at the new home." Every adaptation the cross-side check found
+  gets a bullet, marked by git or not
+  ([core/git-safety](../core/git-safety.md#before-a-merge-where-both-sides-have-new-commits)).
 
 ## Customization
 - An overlay can record the tree's merge subject convention and example

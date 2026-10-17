@@ -126,7 +126,7 @@ the mail body is request-pull output for the pushed tag.
 ### Several trees at once
 1. Update mainline once, then fetch its master into each tree.
 2. Run each tree's steps in that tree's own shell calls
-   ([core/safe-operations](../core/safe-operations.md#working-across-repositories)).
+   ([core/safe-operations](../core/safe-operations.md#before-a-shell-command-that-targets-a-repository)).
 3. A second-factor token may cover several tag pushes
    ([core/publishing](../core/publishing.md#second-factor-tokens)). The
    overlay says how the user's server behaves.

@@ -27,8 +27,11 @@ it replaces.
 - Leave out every word that doesn't change what the reader understands,
   show-off tone included, because each one stands between the reader and
   the point ([details](#what-to-leave-out)).
+- Name the goal, not one of many literal commands or values that reach it,
+  because the reader picks the means ([details](#what-to-leave-out)).
 - An edit the user makes to the agent's prose counts as a correction, said
-  or not, because otherwise the user makes the same edit again
+  or not, and a convention once recorded is never searched for again,
+  because otherwise the user makes the same edit again
   ([details](#after-an-edit-or-a-critique)).
 - [GATE] Before showing prose: no paragraph runs past 8 lines, and the text
   has the length its kind calls for, because a longer paragraph can't be
