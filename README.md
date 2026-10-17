@@ -5,7 +5,8 @@ writing and posting patches, reviewing them before they go out, maintaining a
 tree, testing kernels and debugging failures. The workflows are plain
 markdown files. Any agent harness that follows instructions from files can
 use them, including Claude Code and Codex. The repository is kaw for short,
-as in the `kaw.*` git config keys its tools read.
+as in the `kaw.*` git config keys its tools read. It lives at
+https://github.com/htejun/kernel-agent-workflows.
 
 They come from daily kernel development and maintenance. Most rules exist
 because something went wrong without them: a mail sent twice, a patch
@@ -74,7 +75,7 @@ Your profile and overlays live outside this repository, so updating is a
    patchset review uses:
 
    ```
-   git clone <URL of this repository>
+   git clone https://github.com/htejun/kernel-agent-workflows
    git clone https://github.com/masoncl/review-prompts
    ```
 
