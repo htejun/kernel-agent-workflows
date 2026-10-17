@@ -112,7 +112,10 @@ A batch starts at step 1. A single report starts at step 5.
    patchset over the whole batch. Present each with its label and wait for
    the user's confirmation. For a reachable claim, build the reproducer,
    show the result before and after the fix, and refine the fix. Then
-   bucket it (step 17) and move on.
+   bucket it (step 17) and move on. A reproducer that comes together
+   quickly needs no separate go-ahead. When it stretches out, with long
+   setup, many attempts or machine time, check in with the user before
+   going on.
 
 ### Reproducing and fixing
 10. Build a reproducer that produces a kernel-visible signal on the base
