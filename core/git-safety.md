@@ -22,6 +22,11 @@
   regions and asked for a resolution, even in auto mode, because a
   resolution decides how two lines of work combine. The one exception is a
   rebase of the agent's own patches during a rework the user asked for.
+- [GATE] Before presenting a conflict or proposing its resolution: show
+  where it came from, which commits on each side collide and how, and per
+  commit how the resolution keeps its intention, auto-merged hunks
+  included, because a check against the marked region or an earlier
+  adaptation inherits whatever they missed.
 - Add files to the index by name or pattern after reading `git status`,
   never with `git add -A` or `git add .`, because a working tree holds files
   that don't belong in the commit.
@@ -68,6 +73,24 @@
       wrote was shown to the user first
       ([rebasing the agent's own patches](#rebasing-the-agents-own-patches)).
 
+### Before presenting a conflict or proposing its resolution
+- [ ] Where each conflict came from: the incoming commits, and the target
+      commits since `git merge-base --all`, that touch the conflicted code
+      or the logic the incoming commits change. Find them per function with
+      `git log -L '/^<function>(/,/^}/:<file>'` and read them in full. The
+      `git log -L :<function>:<file>` form can match the wrong definition
+      and report nothing.
+- [ ] How they collide: for each pair, what each commit intended and what
+      of the other it breaks, invalidates or depends on, including hunks
+      git merged without a marker.
+- [ ] A resolution that keeps the intention of every involved commit,
+      shown commit by commit.
+- [ ] The resolution's commit message explains each conflict: the commits
+      on both sides, their intents, and how the resolution satisfies each
+      ([maintain/merges](../maintain/merges.md#message-shapes)).
+- [ ] No item rests on a clean auto-merge, a line count, or a byte match
+      with an earlier adaptation of the same patches.
+
 ## Procedure
 ### Before rewriting a branch
 1. Before a rebase, reset or amend that a push will follow, run
@@ -91,17 +114,21 @@
    [rebasing the agent's own patches](#rebasing-the-agents-own-patches).
 3. Any other conflict, from `git merge`, `git cherry-pick`, `git am` or a
    rebase of anyone else's work, stops the work, even in auto mode.
-4. Present the conflicted files and a short summary of each conflicting
-   region, then wait.
+4. Present the conflicted files, each conflicting region, and where each
+   conflict came from
+   ([the checklist](#before-presenting-a-conflict-or-proposing-its-resolution)),
+   then wait.
 5. If the user asks, abort with the command's `--abort`.
 6. When the user asks for a resolution, follow
    [resolving a conflict](#resolving-a-conflict).
 
 ### Resolving a conflict
-1. Find the commits on each side that touched each conflicted file:
-   `git log --oneline <merge-base>..HEAD -- <file>` for the target, and the
-   same range ending at the incoming side. Read their diffs.
-2. State what each commit intended.
+1. Find the commits on each side that touch the conflicted code or the
+   logic the incoming commits change, per function, as
+   [the checklist](#before-presenting-a-conflict-or-proposing-its-resolution)
+   describes. Read their diffs in full.
+2. State what each commit intended, and for each pair, what of the other it
+   breaks, invalidates or depends on.
 3. For every incoming commit, state the behavior it changes and find what
    the target did to that logic since the merge base. Apply the incoming
    edit where the target moved the code. Git merges the moved copy without
@@ -116,8 +143,8 @@
    into several paths takes it on every path that carries the case. Show
    that the merged code has each incoming behavior on every path, including
    where git merged without a marker.
-6. Present the resolution. For a merge commit, present its message with it
-   ([maintain/merges](../maintain/merges.md#merge-messages)).
+6. Present the resolution commit by commit. For a merge commit, present its
+   message with it ([maintain/merges](../maintain/merges.md#merge-messages)).
 
 ### Rebasing the agent's own patches
 During a rework the user asked for, such as editing, reordering or
@@ -176,6 +203,10 @@ require it:
   Taking the target's side of the conflict alone would have broken the
   build. Reading both sides' commits showed that the rename belonged at the
   function's new home.
+- A byte match is a line check too. A proposed resolution once named only
+  the commit behind the marked region and was justified by a byte match with
+  an earlier adapted copy of the same patches. That copy's misses came
+  along with it. The per-commit trace comes first, every time.
 
 ## Customization
 - `$COMMIT_WORD` sets the word that authorizes a commit.

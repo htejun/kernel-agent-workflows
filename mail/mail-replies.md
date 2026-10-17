@@ -105,10 +105,14 @@
   good to me.`, a blank line, `Acked-by: $IDENTITY`, the closing and the
   signature.
 - Acking each patch, when the user asks for a reply to each: reply to the
-  patch itself ([mail/thread-roots](../mail/thread-roots.md#procedure)), with
-  no greeting. Quote the whole description through its tag block under
+  patch itself ([mail/thread-roots](../mail/thread-roots.md#procedure)),
+  with References: naming the cover letter and then the patch, and with no
+  greeting. Quote the whole description through its tag block under
   `On <date>, <Name> wrote:`, then `Acked-by: $IDENTITY`, the closing and
   the signature.
+- A bare "ack" from the user after a review means this plain ack, even when
+  the review listed points for a reply. Nits go in only when the user names
+  them.
 
 ### Drafts under the user's name
 - No speculative questions, alternative designs or framings added while

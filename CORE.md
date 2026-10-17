@@ -38,6 +38,10 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   function and API names. When one can't be checked, describe the mechanism in
   general terms instead, because a reconstructed identifier is often subtly
   wrong and sends the reader to the wrong place.
+- Settle every performance design choice by measuring the alternatives on the
+  target machine, and measure an explanation of a result before stating it,
+  because reasoning about performance is wrong often enough to miss the optimum
+  ([details](core/evidence-discipline.md#performance-work)).
 
 ## [core/git-safety](core/git-safety.md)
 
@@ -52,6 +56,11 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   regions and asked for a resolution, even in auto mode, because a resolution
   decides how two lines of work combine. The one exception is a rebase of the
   agent's own patches during a rework the user asked for.
+- [GATE] Before presenting a conflict or proposing its resolution: show where it
+  came from, which commits on each side collide and how, and per commit how the
+  resolution keeps its intention, auto-merged hunks included, because a check
+  against the marked region or an earlier adaptation inherits whatever they
+  missed.
 - Add files to the index by name or pattern after reading `git status`, never
   with `git add -A` or `git add .`, because a working tree holds files that
   don't belong in the commit.

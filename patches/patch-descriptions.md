@@ -190,8 +190,9 @@ argument the reviewer needs.
   symptom.
 - Cite commits in the form
   [patches/commit-tags](../patches/commit-tags.md#commit-references) gives.
-- Kerneldoc markup, `%CONST` and `@arg`, stays in kerneldoc comments and
-  never appears in a subject or body.
+- Kerneldoc's `%CONST` markup stays in kerneldoc comments and never appears
+  in a subject or body. `@arg` may name a function argument in either, as
+  in "taking @rq explicitly".
 - "Verified by" in a description is one sentence, such as "Verified with a
   synthetic reproducer.", without iteration counts or machine details.
   Only the chain-of-commits fix above may use a paragraph. The cover letter

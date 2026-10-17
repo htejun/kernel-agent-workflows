@@ -134,10 +134,13 @@ The conflicts form a list:
   conflict in commit order, with continuation lines indented two spaces.
   To fill a bullet, fill it as a paragraph with a two-space prefix, then
   turn the first line's indent into `- `.
-- Each bullet opens with the function or file, names both sides with
-  `<sha12> ("subject")` and what each does, then states the resolution in
-  one sentence: "Kept both, the wait after the clear, so that ..." or
-  "Dropped the old file's side and applied the rename at the new home."
+- Each bullet opens with the function or file, names the commits on both
+  sides with `<sha12> ("subject")` and what each intended, then states how
+  the resolution keeps each intention: "Kept both, the wait after the
+  clear, so that ..." or "Dropped the old file's side and applied the
+  rename at the new home." Hunks git merged without a marker get a bullet
+  too:
+  ([core/git-safety](../core/git-safety.md#before-presenting-a-conflict-or-proposing-its-resolution)).
 
 ## Customization
 - An overlay can record the tree's merge subject convention and example

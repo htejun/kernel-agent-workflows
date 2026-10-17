@@ -24,7 +24,8 @@ How the agent reasons, how much it validates, when it asks, how it waits and how
 it handles risky operations.
 
 - [core/evidence-discipline](core/evidence-discipline.md): diagnosing a failure,
-  stating a cause, or making a claim about code, data or a past event.
+  stating a cause, making a claim about code, data or a past event, or making a
+  performance design choice.
 - [core/git-safety](core/git-safety.md): committing or amending, adding files to
   the index, rebasing, resetting or force-pushing a branch, overwriting a tag or
   a branch, pulling or merging, switching branches with local changes, adding

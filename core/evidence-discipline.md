@@ -1,7 +1,7 @@
 # Evidence discipline
 
-- **Load when:** diagnosing a failure, stating a cause, or making a claim
-  about code, data or a past event.
+- **Load when:** diagnosing a failure, stating a cause, making a claim about
+  code, data or a past event, or making a performance design choice.
 - **Parameters:** none
 - **Depends on:** none
 
@@ -17,6 +17,10 @@
   function and API names. When one can't be checked, describe the mechanism
   in general terms instead, because a reconstructed identifier is often
   subtly wrong and sends the reader to the wrong place.
+- Settle every performance design choice by measuring the alternatives on
+  the target machine, and measure an explanation of a result before stating
+  it, because reasoning about performance is wrong often enough to miss the
+  optimum ([details](#performance-work)).
 
 ## Procedure
 ### Stating a cause
@@ -57,6 +61,15 @@
 - A failed search is evidence about the search pattern, not about the
   material. Search to locate, then read what was found before concluding
   that something is absent.
+
+### Performance work
+- Every design choice, such as placement, pinning order, partition
+  granularity or any tuning knob, is settled by measuring the alternatives
+  on the target machine. Never rule one out by reasoning that it can't help.
+- An explanation of a result, such as clock frequency, memory bandwidth or
+  cache behavior, is measured before it is stated as the cause.
+- Keep testing variants until the measurements show the optimum. In
+  performance work, the task's effort budget covers measuring them.
 
 ### How much proof a task needs
 Evidence discipline governs what may be claimed. It does not demand
