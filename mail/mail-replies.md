@@ -5,7 +5,12 @@
   acknowledgment of applied patches, a review ack, or a review marked as
   AI-generated.
 - **Parameters:** `$IDENTITY`
-- **Depends on:** [mail/thread-roots](../mail/thread-roots.md)
+- **Depends on:** [mail/mail-compose](../mail/mail-compose.md),
+  [mail/thread-roots](../mail/thread-roots.md)
+
+A finished draft becomes a mail file as
+[mail/mail-compose](../mail/mail-compose.md) describes, and goes out as
+[core/publishing](../core/publishing.md#who-sends-mail) describes.
 
 ## Always-on rules
 - A draft under the user's name carries only points the user raised or

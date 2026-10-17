@@ -8,8 +8,8 @@
   [core/waits-and-long-ops](../core/waits-and-long-ops.md),
   [core/git-safety](../core/git-safety.md),
   [review/kernel-build](../review/kernel-build.md),
-  [mail/mail-send](../mail/mail-send.md),
-  [mail/sent-log](../mail/sent-log.md),
+  [core/publishing](../core/publishing.md),
+  [mail/mail-compose](../mail/mail-compose.md),
   [maintain/branch-model](../maintain/branch-model.md),
   [maintain/merges](../maintain/merges.md)
 
@@ -101,7 +101,7 @@ what this tree adds on top of them.
 
 ### Creating and sending
 Signing and pushing the tag are preparation, done before asking for the
-send word ([mail/mail-send](../mail/mail-send.md#always-on-rules)), because
+send word ([core/publishing](../core/publishing.md#always-on-rules)), because
 the mail body is request-pull output for the pushed tag.
 1. The user signs the tag, since signing needs the user's key:
    `GPG_TTY=$(tty) git tag -s <tag> <branch> -F <description file>`.
@@ -118,15 +118,17 @@ the mail body is request-pull output for the pushed tag.
 5. When the base has dependencies, add a note above the request-pull output
    that says what the base consists of, such as "vX.Y + <tree>/<branch>",
    and how to resolve any conflicts.
-6. Send per [mail/mail-send](../mail/mail-send.md#the-send-flow) and record
-   the pull request ([mail/sent-log](../mail/sent-log.md#procedure)).
+6. Send it as [core/publishing](../core/publishing.md#who-sends-mail)
+   describes, and record it
+   ([mailbox/sent-log](../mailbox/sent-log.md#procedure)) when that is
+   enabled.
 
 ### Several trees at once
 1. Update mainline once, then fetch its master into each tree.
 2. Run each tree's steps in that tree's own shell calls
    ([core/safe-operations](../core/safe-operations.md#working-across-repositories)).
 3. A second-factor token may cover several tag pushes
-   ([mail/mail-send](../mail/mail-send.md#second-factor-tokens)). The
+   ([core/publishing](../core/publishing.md#second-factor-tokens)). The
    overlay says how the user's server behaves.
 
 ## Reference

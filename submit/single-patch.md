@@ -6,10 +6,10 @@
 - **Parameters:** `$SUBJECT_STYLE`, `$SENT_LOG`
 - **Depends on:** [core/evidence-discipline](../core/evidence-discipline.md),
   [patches/commit-tags](../patches/commit-tags.md),
+  [core/publishing](../core/publishing.md),
   [mail/lore-thread](../mail/lore-thread.md),
-  [mail/mail-send](../mail/mail-send.md),
+  [mail/mail-compose](../mail/mail-compose.md),
   [mail/thread-roots](../mail/thread-roots.md),
-  [mail/sent-log](../mail/sent-log.md),
   [submit/patchset-posting](../submit/patchset-posting.md)
 
 A single patch goes out without a cover letter. The posting gate and the
@@ -33,11 +33,14 @@ recipients are in [submit/patchset-posting](../submit/patchset-posting.md).
    there shows in the mail and stays out of the commit.
 6. Pass the posting
    [gate](../submit/patchset-posting.md#before-posting-a-patch-or-patchset).
-7. Send the patch as
-   [mail/mail-send](../mail/mail-send.md#sending-patches-with-git-send-email)
-   describes, on the thread root that
-   [mail/thread-roots](../mail/thread-roots.md#procedure) gives, and record it
-   in $SENT_LOG as [mail/sent-log](../mail/sent-log.md#procedure) describes.
+7. Thread the patch as [mail/thread-roots](../mail/thread-roots.md#procedure)
+   gives, and build the command as
+   [mail/mail-compose](../mail/mail-compose.md#the-git-send-email-command)
+   describes. Send it as
+   [core/publishing](../core/publishing.md#who-sends-mail) describes, and
+   record it in $SENT_LOG as
+   [mailbox/sent-log](../mailbox/sent-log.md#procedure) describes when that
+   is enabled.
 
 ### Re-posting one patch of a patchset
 Send an updated patch of a posted patchset, such as one with review fixes
@@ -53,15 +56,16 @@ or a bug fix, as a reply to the patch it replaces.
 4. Generate the patch with the original subject, changing only `PATCH` to
    `PATCH vN`. The `NN/MM` and the rest of the subject stay character for
    character, and no tree tag is added. Thread it as
-   [mail/thread-roots](../mail/thread-roots.md#procedure) gives for a patch
-   re-posted from a patchset:
+   [mail/thread-roots](../mail/thread-roots.md#procedure) gives for a
+   patch re-posted from a patchset:
 
    ```
    git format-patch -1 --subject-prefix='PATCH v2 04/13' --in-reply-to='<msgid>' -o <dir> <commit>
    ```
 
 5. Pass the posting
-   [gate](../submit/patchset-posting.md#before-posting-a-patch-or-patchset) and
-   send the patch as
-   [mail/mail-send](../mail/mail-send.md#sending-patches-with-git-send-email)
-   describes.
+   [gate](../submit/patchset-posting.md#before-posting-a-patch-or-patchset).
+   Build the command as
+   [mail/mail-compose](../mail/mail-compose.md#the-git-send-email-command)
+   describes, and send the patch as
+   [core/publishing](../core/publishing.md#who-sends-mail) describes.

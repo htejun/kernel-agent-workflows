@@ -33,3 +33,21 @@ Facts and idioms that have no order.
 ## Customization
 - What a profile parameter or an overlay usually changes here.
 ```
+
+## Overlay template
+
+A user's overlay for a module lives outside this repository, in the
+overlay directory, named after the module's file. core/overlays.md says
+what goes in each section.
+
+```markdown
+# <module> overlay
+
+## Local facts
+- A machine, an account, a path, a person or a local exception that the
+  module leaves out.
+
+## Pending flush
+- <date>: a rule learned in use, in plain words, with the user's own words
+  when they gave them. It waits here until it is flushed into the module.
+```

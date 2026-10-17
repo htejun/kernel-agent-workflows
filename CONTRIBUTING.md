@@ -132,6 +132,17 @@ required, and a description. Users set their own values in their profile.
 - `tools/check-modules` checks module structure, parameters, links and
   widths. `tools/check-modules --write` regenerates INDEX.md and CORE.md.
   Never edit those two by hand.
+- `tools/overlay-status <overlay dir>` reports what a user's overlays have
+  collected for flushing.
+
+## Flushing overlays
+
+Most changes start as rules a user taught their agent, collected in the
+user's overlays. When enough have collected, the agent flushes them into the
+modules ([core/overlays](core/overlays.md#flushing)): each generic rule is
+rewritten for any kernel developer under the rules of this file, local
+facts stay in the overlay, and the result goes up as a pull request. A
+flush is reviewed like any other change, with the leak check first.
 
 ## Commits
 

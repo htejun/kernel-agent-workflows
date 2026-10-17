@@ -3,7 +3,8 @@
 - **Load when:** planning or running tests, reviews or measurements, or
   deciding when verification is enough.
 - **Parameters:** none
-- **Depends on:** [core/evidence-discipline](../core/evidence-discipline.md)
+- **Depends on:** [core/evidence-discipline](../core/evidence-discipline.md),
+  [test/test-layout](../test/test-layout.md)
 
 ## Always-on rules
 - Size validation to the decision it supports: choose the coverage, the
@@ -29,9 +30,8 @@
    Exhaustive branch coverage, rare race coverage and precise confidence
    bounds each need their own reason.
 6. Keep one result directory per campaign and report concisely in the
-   reply. Record the source revision and local changes, binary identity,
-   kernel and configuration, machine, commands, raw logs and outcomes.
-   Record common metadata once.
+   reply. What the directory records is in
+   [test/test-layout](../test/test-layout.md#result-directories).
 7. Check progress against the requested result as the work goes. When most
    of the work goes into repairing the harness, rechecking unchanged
    evidence or bookkeeping, stop and reassess: simplify the check, use

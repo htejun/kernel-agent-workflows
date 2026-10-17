@@ -3,7 +3,7 @@
 - **Load when:** reading the reviews, feedback or replies on a posting,
   fetching a patchset or a thread from lore, or looking for a message on a
   mailing list.
-- **Parameters:** `$MAIL_READ`, `$SENT_LOG`, `$SCRATCH`
+- **Parameters:** `$SENT_LOG`, `$SCRATCH`
 - **Depends on:** [core/evidence-discipline](../core/evidence-discipline.md)
 
 ## Always-on rules
@@ -18,9 +18,9 @@
 1. Get the Message-ID: from $SENT_LOG for the user's own postings, and from
    the mail or its lore URL otherwise. Copy it, never reconstruct it
    ([core/evidence-discipline](../core/evidence-discipline.md#always-on-rules)).
-2. When $MAIL_READ names a local mailbox setup and the thread is already
-   there, read the local copy instead of fetching it again.
-3. Otherwise fetch the patches and the whole thread:
+2. When [mailbox/inbox](../mailbox/inbox.md) is enabled and the thread is
+   in the local mailbox, read it there instead. Otherwise fetch the patches
+   and the whole thread:
 
    ```
    b4 am -o $SCRATCH/<topic> <msgid> && b4 mbox -o $SCRATCH/<topic> <msgid>
@@ -28,12 +28,12 @@
 
    `b4 mbox` saves the thread as an mbox, the same content as
    `https://lore.kernel.org/all/<msgid>/t.mbox.gz`.
-4. Don't trust `b4 am` alone. Its output keeps the patches and the trailers
+3. Don't trust `b4 am` alone. Its output keeps the patches and the trailers
    it recognized, and it can miss reviews, objections and newer versions.
    Read the thread mbox for reviews, objections, NAKs, tags such as
    Reviewed-by, Acked-by and Tested-by, newer versions and maintainer
    feedback.
-5. List every message in the thread and read each one in full. Skip only
+4. List every message in the thread and read each one in full. Skip only
    duplicate copies of a message. Never cut the list down with `head` or a
    sender pattern.
 
@@ -49,5 +49,5 @@
   challenge.
 
 ## Customization
-- `$MAIL_READ` names a local mailbox setup when the user has one. Its
-  overlay says how to search and read it and which quirks to expect.
+- Reading the user's own mailbox is the opt-in
+  [mailbox/inbox](../mailbox/inbox.md).

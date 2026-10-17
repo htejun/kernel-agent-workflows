@@ -9,8 +9,9 @@
   [patches/patch-descriptions](../patches/patch-descriptions.md),
   [patches/commit-tags](../patches/commit-tags.md),
   [review/patchset-review](../review/patchset-review.md),
-  [mail/mail-send](../mail/mail-send.md),
+  [core/publishing](../core/publishing.md),
   [submit/patchset-posting](../submit/patchset-posting.md),
+  [test/vm-testing](../test/vm-testing.md),
   [debug/event-tracing](../debug/event-tracing.md)
 
 This module turns one bug report or a batch of findings into verdicts, and
@@ -121,7 +122,7 @@ A batch starts at step 1. A single report starts at step 5.
     What makes a reproducer count is in
     [core/evidence-discipline](../core/evidence-discipline.md#what-counts-as-evidence).
 12. Run the reproducer in a VM with the debug configs the bug shape needs
-    (VM mechanics: test/vm-testing).
+    ([test/vm-testing](../test/vm-testing.md)).
 13. When a reproducer keeps failing, suspect the premise, not the technique.
     Stop varying the test and reread the source for the validation check,
     the precondition or the macro that drops the argument. Widen the window
@@ -151,7 +152,8 @@ A batch starts at step 1. A single report starts at step 5.
     describes.
 20. Verify the [GATE] checklist, then post the patchset per
     [submit/patchset-posting](../submit/patchset-posting.md#posting-a-patchset)
-    and [mail/mail-send](../mail/mail-send.md#the-send-flow).
+    under the gate in
+    [core/publishing](../core/publishing.md#before-publishing).
 
 ## Reference
 ### Report formats

@@ -1,18 +1,19 @@
 # Applying patches
 
 - **Load when:** the user asks to apply posted patches, one patch or a
-  patchset from a mailing list or the inbox, to a tree they maintain,
+  patchset from a mailing list or the user's inbox, to a tree they maintain,
   including the for-next merge, the push and the acknowledgment that
   follow.
 - **Parameters:** `$TREES`, `$IDENTITY`, `$SCRATCH`, `$WORKTREE_ROOT`
 - **Depends on:** [core/safe-operations](../core/safe-operations.md),
   [core/git-safety](../core/git-safety.md),
+  [core/publishing](../core/publishing.md),
   [patches/commit-tags](../patches/commit-tags.md),
   [review/patchset-review](../review/patchset-review.md),
   [review/kernel-build](../review/kernel-build.md),
   [mail/lore-thread](../mail/lore-thread.md),
   [mail/mail-replies](../mail/mail-replies.md),
-  [mail/mail-send](../mail/mail-send.md),
+  [mail/mail-compose](../mail/mail-compose.md),
   [mail/thread-roots](../mail/thread-roots.md),
   [maintain/branch-model](../maintain/branch-model.md),
   [maintain/merges](../maintain/merges.md)
@@ -34,10 +35,9 @@
 - Push the applied branches without a pause to confirm, because the apply
   instruction covers the push and the server rejects a push that doesn't
   fast-forward.
-- Acknowledge every apply, the user's own patches included, through the
-  send gate of [mail/mail-send](../mail/mail-send.md#before-a-public-send),
-  because the thread learns where the patches went only from the
-  acknowledgment.
+- Acknowledge every apply, the user's own patches included, under the gate
+  of [core/publishing](../core/publishing.md#before-publishing), because
+  the thread learns where the patches went only from the acknowledgment.
 
 ## [GATE] Checklist
 ### Before applying a patch
@@ -115,10 +115,11 @@
     `git push <remote> <target> for-next`. Don't fetch and compare first.
     Stop only for a genuine error: a rejected push, a conflict, or an
     authentication prompt such as a second-factor token
-    ([mail/mail-send](../mail/mail-send.md#second-factor-tokens)).
+    ([core/publishing](../core/publishing.md#second-factor-tokens)).
 15. Prepare the acknowledgment right after the push
-    ([the acknowledgment](#the-acknowledgment)) and send it through
-    [mail/mail-send](../mail/mail-send.md#the-send-flow).
+    ([the acknowledgment](#the-acknowledgment)), build it as
+    [mail/mail-compose](../mail/mail-compose.md) describes, and send it as
+    [core/publishing](../core/publishing.md#who-sends-mail) describes.
 16. Remove one-shot worktrees
     ([removing a one-shot worktree](#removing-a-one-shot-worktree)).
 
@@ -128,8 +129,8 @@ or test the patches of an apply are removed without asking, because a
 leftover copy of a branch goes stale and later passes for the current one
 ([maintain/branch-model](../maintain/branch-model.md#pitfalls)). This
 never covers a tree the user works in or the publication tree itself.
-1. Remove them once the acknowledgment's post-send audit passes, or right
-   away when the review ends without an apply.
+1. Remove them once the acknowledgment went out or was handed to the user,
+   or right away when the review ends without an apply.
 2. Check first that `git -C <worktree> status --short` prints nothing
    (ignored build output doesn't count), and that `git log
    <target>..<branch>` and `git diff <target> <branch>` show only the

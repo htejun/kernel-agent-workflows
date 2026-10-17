@@ -3,7 +3,8 @@
 - **Load when:** preparing or posting a patchset or a new version of one,
   including RFC and resend postings, or collecting review tags from a
   previous posting.
-- **Parameters:** `$SUBJECT_STYLE`, `$TREES`, `$SENT_LOG`, `$SCRATCH`
+- **Parameters:** `$SUBJECT_STYLE`, `$TREES`, `$SENT_LOG`, `$SCRATCH`,
+  `$SEND_TOKEN`
 - **Depends on:** [core/evidence-discipline](../core/evidence-discipline.md),
   [core/git-safety](../core/git-safety.md),
   [patches/patch-descriptions](../patches/patch-descriptions.md),
@@ -13,10 +14,10 @@
   [review/checkpatch](../review/checkpatch.md),
   [review/patchset-review](../review/patchset-review.md),
   [review/kernel-build](../review/kernel-build.md),
+  [core/publishing](../core/publishing.md),
   [mail/lore-thread](../mail/lore-thread.md),
-  [mail/mail-send](../mail/mail-send.md),
+  [mail/mail-compose](../mail/mail-compose.md),
   [mail/thread-roots](../mail/thread-roots.md),
-  [mail/sent-log](../mail/sent-log.md),
   [submit/dependent-patchsets](../submit/dependent-patchsets.md)
 
 ## Always-on rules
@@ -40,9 +41,11 @@
       ([recipients](#recipients)).
 - [ ] The subjects follow $SUBJECT_STYLE ([prefixes](#subject-prefixes)),
       and one generated Subject was read.
-- [ ] The send meets the gate in
-      [mail/mail-send](../mail/mail-send.md#before-a-public-send), which covers
-      threading, the mail files, the self-copy and the send token.
+- [ ] The mail files pass the gate in
+      [mail/mail-compose](../mail/mail-compose.md#before-mail-files-leave-the-agent).
+      When the agent sends, the send also passes the gates in
+      [core/publishing](../core/publishing.md#before-publishing) and
+      [mailbox/mail-send](../mailbox/mail-send.md#before-sending-mail).
 
 ## Procedure
 ### Posting a patchset
@@ -69,24 +72,25 @@
    with the [subject prefix](#subject-prefixes) and the
    [recipients](#recipients). With `standard`, fill in the generated cover. With
    `cover`, write it as its own mail file in the same directory.
-6. If the cover names a branch in the user's own public tree, push the
-   branch there before asking for the send token, so that the link works
-   when the mail arrives. A push to a shared remote is publishing and needs
-   the send token
-   ([mail/mail-send](../mail/mail-send.md#what-counts-as-publishing)). Try
-   the push first, because an earlier second-factor code often still works.
-   On an authentication error, get a new code as
-   [mail/mail-send](../mail/mail-send.md#second-factor-tokens) describes,
-   and never wait at an interactive prompt.
-7. Send the cover and every patch in one git send-email invocation, as
-   [mail/mail-send](../mail/mail-send.md#sending-patches-with-git-send-email)
-   describes.
+6. If the cover names a branch in a public tree, push the branch before the
+   mail goes out, so that the link works when the mail arrives. The push is
+   publishing
+   ([core/publishing](../core/publishing.md#what-counts-as-publishing)): it
+   gets its own readiness summary and $SEND_TOKEN first, and the mail's
+   summary comes after it. A second-factor prompt is handled as
+   [core/publishing](../core/publishing.md#second-factor-tokens) describes.
+7. Build one git send-email command for the cover and every patch, as
+   [mail/mail-compose](../mail/mail-compose.md#the-git-send-email-command)
+   describes, and send it as
+   [core/publishing](../core/publishing.md#who-sends-mail) describes.
 8. Record the posting in $SENT_LOG, as
-   [mail/sent-log](../mail/sent-log.md#procedure) describes.
+   [mailbox/sent-log](../mailbox/sent-log.md#procedure) describes, when that
+   is enabled.
 
 ### Posting a new version
 1. Look up the previous version in $SENT_LOG: its Message-ID, base, branch and
-   patch count. Fetch its whole thread, as
+   patch count. Without $SENT_LOG or an entry there, find the posting on
+   lore by its subject. Fetch its whole thread, as
    [mail/lore-thread](../mail/lore-thread.md#procedure) describes, to confirm
    what was sent. The patch count may differ from the local branch.
 2. Collect the review tags and the feedback
@@ -119,9 +123,9 @@
    earlier versions on top, as
    [patches/cover-letters](../patches/cover-letters.md#procedure) describes. A
    full new version starts a new thread
-   ([mail/thread-roots](../mail/thread-roots.md#procedure)), and its record goes
-   under the patchset's existing entry in $SENT_LOG
-   ([mail/sent-log](../mail/sent-log.md#procedure)).
+   ([mail/thread-roots](../mail/thread-roots.md#procedure)). When
+   [mailbox/sent-log](../mailbox/sent-log.md#procedure) is enabled, its
+   record goes under the patchset's existing entry in $SENT_LOG.
 
 ### Collecting review tags
 1. Read the previous version's whole thread for tags and feedback, as
@@ -237,8 +241,8 @@ alone comes from a moved base and is not a change to the patch.
   MAINTAINERS, because people change them.
 - Add the lists and people that $TREES names for the tree.
 - A new version goes to the previous version's actual recipients, taken
-  from its sent copy, plus everyone who reviewed it and everyone a vN note
-  credits.
+  from its sent copy, or from its headers on lore when there is no sent
+  copy, plus everyone who reviewed it and everyone a vN note credits.
 
 ## Customization
 - `$SUBJECT_STYLE` picks the subject form, and `$TREES` the lists and

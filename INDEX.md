@@ -31,6 +31,12 @@ it handles risky operations.
   a branch, pulling or merging, switching branches with local changes, adding
   remotes or upstream tracking, or when a git merge, rebase, cherry-pick or am
   stops on a conflict.
+- [core/overlays](core/overlays.md): the user states a new rule, corrects the
+  agent, says "remember", or asks to review the overlays or flush them into this
+  repository.
+- [core/publishing](core/publishing.md): about to publish anything others can
+  see: send mail, push to a remote others can read, post on GitHub, create a
+  release or upload a package.
 - [core/safe-operations](core/safe-operations.md): running commands that delete,
   overwrite or force anything, working across several repositories, running
   commands as root, writing working files, or touching a publication tree.
@@ -82,27 +88,43 @@ checkpatch, build checks, patchset review and formal model checks.
 
 ## Mail
 
-Reading threads, sending mail safely, replies and the sent log.
+Reading threads from the public archives, composing and threading mail, and
+writing replies.
 
 - [mail/lore-thread](mail/lore-thread.md): reading the reviews, feedback or
   replies on a posting, fetching a patchset or a thread from lore, or looking
   for a message on a mailing list.
+- [mail/mail-compose](mail/mail-compose.md): building the files and the send
+  command for any mail, such as a patch, a patchset, a reply, an acknowledgment
+  or a pull request, whether the agent or the user sends it.
 - [mail/mail-replies](mail/mail-replies.md): drafting any mail or public comment
   under the user's name: a reply on a mailing list, a review reply to a
   contributor, an acknowledgment of applied patches, a review ack, or a review
   marked as AI-generated.
-- [mail/mail-send](mail/mail-send.md): sending any mail, or publishing anything
-  public, such as a push to a shared remote or a GitHub post.
-- [mail/sent-log](mail/sent-log.md): a patch, a patchset or a pull request was
-  just posted, or a task needs the Message-ID, base or version history of an
-  earlier posting.
-- [mail/setup](mail/setup.md): the user has no setup for reading lore threads or
-  sending mail, asks how to set one up, or a mail module needs a tool that is
-  missing.
+- [mail/setup](mail/setup.md): the user has no setup for reading threads from
+  lore or for composing patch mail, asks how to set one up, or a step needs b4,
+  lei or git send-email and it is missing.
 - [mail/thread-roots](mail/thread-roots.md): choosing what an outgoing mail
   threads under: a new version of a patchset, a patch re-posted from a series, a
   single patch, an acknowledgment, a review reply, or a reply to an automated
   report.
+
+## Mailbox
+
+Access to the user's own mail account: sending mail, the sent log and reading
+the inbox. Opt-in.
+
+- [mailbox/inbox](mailbox/inbox.md): reading the user's own mailbox: listing or
+  summarizing new mail, finding the replies to a posting there, or taking a
+  patch from it.
+- [mailbox/mail-send](mailbox/mail-send.md): sending mail from the user's
+  account: a patch, a patchset, a reply, an acknowledgment or a pull request.
+- [mailbox/send-setup](mailbox/send-setup.md): the user has no setup for sending
+  mail from their account, asks how to set one up, or
+  [mailbox/mail-send](mailbox/mail-send.md) needs a tool that is missing.
+- [mailbox/sent-log](mailbox/sent-log.md): a patch, a patchset or a pull request
+  was just posted, or a task needs the Message-ID, base or version history of an
+  earlier posting.
 
 ## Submitting work
 
@@ -127,8 +149,8 @@ requests.
 Branch model, applying patches, git safety, merges and pull requests.
 
 - [maintain/apply-patches](maintain/apply-patches.md): the user asks to apply
-  posted patches, one patch or a patchset from a mailing list or the inbox, to a
-  tree they maintain, including the for-next merge, the push and the
+  posted patches, one patch or a patchset from a mailing list or the user's
+  inbox, to a tree they maintain, including the for-next merge, the push and the
   acknowledgment that follow.
 - [maintain/branch-model](maintain/branch-model.md): choosing the branch a patch
   or change goes to, working out the current release cycle or rc, naming a devel
@@ -141,6 +163,30 @@ Branch model, applying patches, git safety, merges and pull requests.
   request from a tree the user maintains to mainline, for fixes during the rc
   cycle or for the merge window, for one tree or several at once.
 
+## Testing
+
+Machine access, test result layout, remote test machines, VMs and performance
+comparisons.
+
+- [test/machine-access](test/machine-access.md): setting up a test machine or VM
+  for the agent, adding one to `$MACHINES`, or reaching one for a shell, console
+  capture, power control, SysRq, crash dumps, shared files or booting a test
+  kernel.
+- [test/perf-comparison](test/perf-comparison.md): comparing the performance of
+  two kernels, schedulers, builds or settings, measuring latency for a claim,
+  running an A/B or a before/after comparison, or generating and modulating load
+  with stress or stress-ng.
+- [test/remote-testing](test/remote-testing.md): deploying a kernel to a test
+  machine or VM, rebooting or kexec'ing one, running tests on one, or analyzing
+  and reporting test results.
+- [test/test-layout](test/test-layout.md): writing or running a test script,
+  starting a test campaign, or deciding where the plans, research notes, test
+  scripts or test results of a piece of work go.
+- [test/vm-testing](test/vm-testing.md): launching, restarting or stopping a
+  QEMU or virtme-ng (vng) VM to test a kernel, building a kernel for vng,
+  getting fresh binaries into a VM, capturing a large console dump from a VM, or
+  testing suspend and resume in a VM.
+
 ## Debugging
 
 Crash analysis, bug report triage and event tracing.
@@ -149,6 +195,10 @@ Crash analysis, bug report triage and event tracing.
   reported kernel issue, such as a mailing-list bug report, a CI or bot finding,
   a user complaint or a batch of AI-generated findings, even when nobody calls
   it triage.
+- [debug/crash-debugging](debug/crash-debugging.md): a test machine or VM hangs,
+  stalls or crashes, a crash dump is to be triggered, saved or analyzed with
+  drgn, a machine is to be power-reset, a hung VM's memory is to be dumped, or a
+  bug report is to be written about a crash.
 - [debug/event-tracing](debug/event-tracing.md): adding kprobes, bpftrace
   scripts, debug probe stubs or an in-kernel trace ring to see what the kernel
   does, including hunting a rare event in a high-rate stream where the history

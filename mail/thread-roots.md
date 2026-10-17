@@ -5,7 +5,7 @@
   acknowledgment, a review reply, or a reply to an automated report.
 - **Parameters:** `$SEND_TOKEN`
 - **Depends on:** [core/evidence-discipline](../core/evidence-discipline.md),
-  [mail/mail-send](../mail/mail-send.md),
+  [core/publishing](../core/publishing.md),
   [patches/cover-letters](../patches/cover-letters.md)
 
 ## Always-on rules
@@ -19,8 +19,8 @@
 ## [GATE] Checklist
 ### Before setting a mail's thread root
 - [ ] The case is the first one in [the precedence](#procedure) that fits.
-- [ ] A case the user decides was asked in the readiness summary and
-      answered.
+- [ ] A case the user decides was asked and answered: before the files go
+      to the user, or in the readiness summary when the agent sends.
 - [ ] Every Message-ID in In-Reply-To and References was copied from the
       thread mbox or the sent copy, never written from memory
       ([core/evidence-discipline](../core/evidence-discipline.md#always-on-rules)).
@@ -39,9 +39,10 @@ Take the first case that fits.
    its own follow-ups. This is not a question either.
 3. A standalone single-patch version, or any patch that could plausibly go
    under an existing discussion, such as a reviewer's reply or a bug report
-   thread: the user decides. Ask in the readiness summary of
-   [mail/mail-send](../mail/mail-send.md#the-readiness-summary), "Thread as
-   (a) a fresh top-level thread [default] or (b) In-Reply-To <msgid>?", and
+   thread: the user decides. Ask "Thread as (a) a fresh top-level thread
+   [default] or (b) In-Reply-To <msgid>?" before handing the files to the
+   user, or in the readiness summary when the agent sends
+   ([core/publishing](../core/publishing.md#the-readiness-summary)), and
    wait for the answer. $SEND_TOKEN approves the send, not the threading
    choice.
 4. An acknowledgment of applied patches: thread on the original posting,

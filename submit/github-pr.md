@@ -6,7 +6,7 @@
 - **Depends on:** [core/git-safety](../core/git-safety.md),
   [review/patchset-review](../review/patchset-review.md),
   [mail/mail-replies](../mail/mail-replies.md),
-  [mail/mail-send](../mail/mail-send.md)
+  [core/publishing](../core/publishing.md)
 
 ## Always-on rules
 - [GATE] Before opening a GitHub pull request: the branch builds, the
@@ -24,8 +24,8 @@
       [review/patchset-review](../review/patchset-review.md#running-a-milestone-review)
       describes, unless the user said "skip review".
 - [ ] The title and body were shown to the user together with the push and
-      create commands, under the send gate in
-      [mail/mail-send](../mail/mail-send.md#before-a-public-send).
+      create commands, under the gate in
+      [core/publishing](../core/publishing.md#before-publishing).
 
 ## Procedure
 ### Opening or updating a pull request
@@ -53,7 +53,7 @@
    upstream repository and the fork's branch:
    `gh pr create --repo <upstream> --head <owner>:<branch>`.
 6. Present the push and `gh pr create` commands with the title and body, under
-   the send gate in [mail/mail-send](../mail/mail-send.md#before-a-public-send).
+   the gate in [core/publishing](../core/publishing.md#before-publishing).
    The gate covers every post here: the push, the pull request, comments,
    reviews and approvals.
 
@@ -88,6 +88,8 @@ A pull request body is read on a web page, not in a mail client.
 ### Review comments
 Tone and length follow
 [mail/mail-replies](../mail/mail-replies.md#replies). On a pull request:
+- A comment opens with the substance, with no greeting and no opening
+  pleasantry, because filler makes it harder to read.
 - Match the scope the user asked for. When asked only to note problems,
   report observations without adding requests, fixes or CI requirements.
 - No list of what is good, no cost and benefit case for a nit, no answers

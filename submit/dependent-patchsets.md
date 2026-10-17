@@ -3,9 +3,8 @@
 - **Load when:** posting a patch or patchset that needs another one not yet
   in the target branch, posting a new version of one, or deciding which
   branch pending patches go on.
-- **Parameters:** none
-- **Depends on:** [mail/mail-send](../mail/mail-send.md),
-  [mail/sent-log](../mail/sent-log.md),
+- **Parameters:** `$SEND_TOKEN`
+- **Depends on:** [core/publishing](../core/publishing.md),
   [submit/patchset-posting](../submit/patchset-posting.md)
 
 ## Always-on rules
@@ -18,11 +17,13 @@
 
 ## [GATE] Checklist
 ### Before posting a dependent patchset
-- [ ] The prerequisite patch or patchset was sent first, under its own send
-      token ([mail/mail-send](../mail/mail-send.md#before-a-public-send)).
-- [ ] The prerequisite's Message-ID comes from its sent copy
-      ([mail/sent-log](../mail/sent-log.md#always-on-rules)), and the dependent
-      cover links it as `https://lore.kernel.org/r/<msgid>`.
+- [ ] The prerequisite patch or patchset went out first: sent by the agent
+      under its own $SEND_TOKEN
+      ([core/publishing](../core/publishing.md#before-publishing)), or sent
+      by the user, who confirmed it went out.
+- [ ] The prerequisite's Message-ID comes from its sent copy, or from the
+      user when the user sent it, and the dependent cover links it as
+      `https://lore.kernel.org/r/<msgid>`.
 
 ## Procedure
 ### Posting

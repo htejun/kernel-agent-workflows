@@ -13,9 +13,11 @@ step needs a choice. Never guess a path, account or address.
 - A profile: one markdown file outside both clones with the user's parameter
   values, `$MODULES` and `$ALIASES`. It starts as a copy of
   profile.example.md.
-- An overlay directory, `$OVERLAY_DIR`. An overlay holds the user's local
-  facts and exceptions for one module, is read after the module, and wins on
-  conflict. It never restates the module's rules.
+- An overlay directory, `$OVERLAY_DIR`, with one file per module the user
+  customizes, laid out as the overlay template in TEMPLATE.md. An overlay
+  holds the user's local facts and the rules learned in use that wait to be
+  flushed into the module. It is read after the module and its intention
+  has priority ([core/overlays](core/overlays.md)).
 - The include block below, in the instruction file of each agent harness the
   user runs, such as CLAUDE.md for Claude Code and AGENTS.md for Codex.
 
@@ -31,14 +33,22 @@ step needs a choice. Never guess a path, account or address.
    Parameters field, using the description in profile.example.md. Ask a few
    questions at a time, in this order: `$ROLE` and `$PATCH_MGMT`, trees and
    branches, mail, gates, testing, the rest. Offer the default where one
-   exists.
+   exists. For mail, the default reads only the public archives through b4
+   and lei, and the agent hands the user mail files and commands to send.
+   Ask whether to enable the opt-in mailbox/ area, for the agent to send
+   mail from the user's account and to read the user's inbox. For testing,
+   ask for each test machine which mechanism provides each capability
+   ([test/machine-access](test/machine-access.md#adding-a-machine)), and
+   record the mechanisms in `$MACHINES` and their details in the
+   machine-access overlay.
 4. Back up every file this setup will edit, such as the instruction files
    and workflow documents, next to the profile.
 5. Write the profile. Copy profile.example.md, fill in the answers, and set
    `$INTEGRATED_COMMIT` to the output of `git -C $KAW_DIR rev-parse HEAD`.
-6. Write overlays for the local facts the survey and the interview turned
-   up: machine details, accounts, people, paths, local exceptions. Keep each
-   fact in exactly one place.
+6. Write overlays from the overlay template for the local facts the survey
+   and the interview turned up: machine details, accounts, people, paths,
+   local exceptions. Keep each fact in exactly one place. From then on the
+   overlays grow in use ([core/overlays](core/overlays.md#recording)).
 7. Resolve conflicts. For each existing rule that contradicts an enabled
    module, show both to the user and ask which wins. Record a local
    exception in the module's overlay. Change or remove the user's old rule
@@ -69,9 +79,11 @@ profile.
    each entry, and ask the user about new parameters and new modules.
 3. List the added and changed modules with
    `git -C $KAW_DIR diff --stat $INTEGRATED_COMMIT HEAD`, and show the user
-   the changes to CORE.md. For each enabled module that changed, check its
-   overlay and raise any line that now repeats or contradicts the module.
-4. Set `$INTEGRATED_COMMIT` to the new HEAD.
+   the changes to CORE.md.
+4. Rebase the overlays onto the changed modules: their intention keeps
+   priority and their form adapts to the new modules
+   ([core/overlays](core/overlays.md#after-an-update)).
+5. Set `$INTEGRATED_COMMIT` to the new HEAD.
 
 ## Removing
 

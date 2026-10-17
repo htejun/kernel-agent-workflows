@@ -60,19 +60,20 @@ Parameters of modules you don't enable can stay unset even when required.
 
 ## Mail
 
-- `$MAIL_READ`: default `lore`. How threads are read: `lore` with b4 and
-  lei, or the name of a local mailbox setup described in an overlay.
-- `$SENDMAIL`: default `msmtp`. The sendmail-compatible command for mail
-  that is not git send-email output.
-- `$MAIL_ACCOUNTS`: default none. Which sendmail account to use for each
-  From address, as `address = account` entries such as
-  `jane@example.org = default`. The mail audit gets every entry.
-- `$SELF_COPY`: default none. An address every outgoing mail is copied to,
-  so that the user keeps a copy of everything sent.
-- `$MAIL_AUDIT`: default `$KAW_DIR/tools/mail-audit`. The command that
-  checks a mail file before it is sent.
-- `$SENT_LOG`: default none. A file where posted patchsets and pull
-  requests are recorded.
+- `$SENDMAIL`: default `msmtp`. Used by the mailbox/ modules. The
+  sendmail-compatible command for mail that is not git send-email output.
+- `$MAIL_ACCOUNTS`: default none. Used by the mailbox/ modules. Which
+  sendmail account to use for each From address, as `address = account`
+  entries such as `jane@example.org = default`. The mail audit gets every
+  entry.
+- `$SELF_COPY`: default none. Used by the mailbox/ modules. An address
+  every outgoing mail is copied to, so that the user keeps a copy of
+  everything sent.
+- `$MAIL_AUDIT`: default `$KAW_DIR/tools/mail-audit`. Used by the mailbox/
+  modules. The command that checks a mail file before it is sent.
+- `$SENT_LOG`: default none. Recorded by
+  [mailbox/sent-log](mailbox/sent-log.md) and read when posting a new
+  version. A file where posted patchsets and pull requests are recorded.
 - `$SUBJECT_STYLE`: default `cover`. How patch subjects carry the version
   and the target. `cover` puts the version and the target tree and branch
   on the cover subject only, `[PATCHSET v2 tree/branch]`. Its patches keep
@@ -91,6 +92,12 @@ Parameters of modules you don't enable can stay unset even when required.
   such as the ones that applied patches and pull requests go out of.
 - `$ROOT_OK_HOSTS`: default none. Dedicated test machines and VMs where the
   agent may run commands as root without asking for each one.
+- `$MACHINES`: default none. One entry per test machine: its name, VM or
+  bare metal, and the mechanism that provides each capability, as named in
+  test/machine-access: shell, console capture, power control, SysRq, crash
+  dumps, shared files and test-kernel boot, or none. Hosts, adapter device
+  paths, BMC addresses and where credentials are kept go in the
+  machine-access overlay.
 - `$PLAN_DIR`: default `PLAN/`. Directory, relative to the working tree,
   for plans, research notes and models that go with a piece of work.
 

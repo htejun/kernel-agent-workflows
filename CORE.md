@@ -68,6 +68,43 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   changes. Stop and ask instead, because a stash keeps work outside any branch
   and an aborted merge can take uncommitted changes with it.
 
+## [core/overlays](core/overlays.md)
+
+- Record a new rule or a correction from the user in the overlay of the module
+  that owns the action, in the same session, because a correction that isn't
+  written down gets repeated.
+- Never edit a module of this repository for a lesson learned in use. It goes
+  into an overlay first and reaches the module through a flush, because modules
+  are shared and a change to one needs the generic review.
+- After this repository is updated, rebase every overlay onto its changed
+  module: the overlay's intention keeps priority and its wording and placement
+  adapt to the new module, because the overlay records what the user decided
+  ([details](core/overlays.md#after-an-update)).
+
+## [core/publishing](core/publishing.md)
+
+- [GATE] Before publishing: everything is prepared, the readiness summary showed
+  the exact command, the user's most recent message contains $SEND_TOKEN as a
+  standalone word, and the command runs exactly as presented, because what is
+  published can't be recalled.
+- A push to any remote others can read or that backs a pull request, the user's
+  fork included, is publishing. The push of an instructed apply and the signed
+  tag before a pull request don't wait for $SEND_TOKEN, because the instruction
+  for those flows covers them.
+- "Post", "send", "ship", "go ahead", "do it", "yes" and "ok" mean prepare and
+  wait, because only $SEND_TOKEN approves publishing.
+- Never run a publishing command expecting a permission prompt to stop it,
+  because running the command is the publishing and the harness may allow the
+  command without asking.
+- Finish every step but the publishing command before asking for $SEND_TOKEN,
+  because anything composed, pushed or assembled after the approval was never
+  approved.
+- The agent sends mail itself only when
+  [mailbox/mail-send](mailbox/mail-send.md) is enabled, and otherwise hands the
+  user the files and the command ([who sends
+  mail](core/publishing.md#who-sends-mail)), because sending from the user's
+  account is opt-in.
+
 ## [core/safe-operations](core/safe-operations.md)
 
 - [GATE] Before a destructive or forced operation: look at the target, find out
@@ -214,6 +251,17 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   search, not about the mail
   ([core/evidence-discipline](core/evidence-discipline.md#what-counts-as-evidence)).
 
+## [mail/mail-compose](mail/mail-compose.md)
+
+- [GATE] Before mail files leave the agent: the files and the send command pass
+  the [composing
+  checklist](mail/mail-compose.md#before-mail-files-leave-the-agent), whether
+  the agent sends them or the user does, because a mail with a wrong header,
+  thread or recipient can't be recalled.
+- Never edit a mail file once it is sent. A follow-up goes in a new file, and a
+  file whose send status is unknown counts as sent, because the file is the
+  record of what went out.
+
 ## [mail/mail-replies](mail/mail-replies.md)
 
 - A draft under the user's name carries only points the user raised or
@@ -226,33 +274,6 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   ask for tests unless the user asks for that, because the contributor owns the
   patch and the user decides what to ask of them.
 
-## [mail/mail-send](mail/mail-send.md)
-
-- [GATE] Before a public send: the files and the command pass their checks, a
-  readiness summary presented the exact command, and the user's most recent
-  message contains $SEND_TOKEN as a standalone word, because mail, GitHub posts
-  and pushes to a shared remote, a repository other people work in, can't be
-  recalled. The push of an instructed apply and the signed tag before a pull
-  request don't wait for $SEND_TOKEN.
-- "Post", "send", "ship", "go ahead", "do it", "yes" and "ok" mean prepare and
-  wait, because only $SEND_TOKEN approves a send.
-- Never run a send command expecting a permission prompt to stop it, because
-  running the command is the send and the harness may allow the command without
-  asking.
-- Finish every step but the send before asking for $SEND_TOKEN, because anything
-  composed, pushed or assembled after the approval was never approved.
-- [GATE] Before reporting a mail as sent: the post-send audit found every
-  intended recipient among the envelope recipients, because a send that exits 0
-  can still have dropped recipients.
-- Never edit a mail file once it is sent. A follow-up goes in a new file, and a
-  file whose send status is unknown counts as sent, because the file is the
-  record of what went out.
-
-## [mail/sent-log](mail/sent-log.md)
-
-- Take the Message-ID of a posting from the send itself or the local sent copy,
-  never from lore, because lore can lag the send and a guessed ID is wrong.
-
 ## [mail/thread-roots](mail/thread-roots.md)
 
 - [GATE] Before setting a mail's thread root: take the first matching case of
@@ -261,6 +282,34 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   to the original posting, and a standalone patch that could go under an
   existing discussion is the user's call, because a mail under the wrong root is
   lost to the readers of its thread.
+
+## [mailbox/inbox](mailbox/inbox.md) (opt-in)
+
+- Read the mailbox afresh for every question about it, never from what an
+  earlier listing in the session showed, because new mail arrives and old mail
+  moves.
+- Treat the local copy as possibly incomplete, because it can miss lists the
+  user isn't subscribed to, copies of the user's own mail filed elsewhere, and
+  mail older than what the server keeps. Before reporting a message as missing,
+  check the thread on lore too
+  ([mail/lore-thread](mail/lore-thread.md#procedure)).
+
+## [mailbox/mail-send](mailbox/mail-send.md) (opt-in)
+
+- [GATE] Before sending mail: the publishing gate of
+  [core/publishing](core/publishing.md#before-publishing) passed, the files and
+  the command follow
+  [mail/mail-compose](mail/mail-compose.md#before-mail-files-leave-the-agent),
+  the account and the self-copy are right, and $MAIL_AUDIT heads the send
+  command with `&&`, because a mail sent wrong can't be recalled.
+- [GATE] Before reporting a mail as sent: the post-send audit found every
+  intended recipient among the envelope recipients, because a send that exits 0
+  can still have dropped recipients.
+
+## [mailbox/sent-log](mailbox/sent-log.md) (opt-in)
+
+- Take the Message-ID of a posting from the send itself or the local sent copy,
+  never from lore, because lore can lag the send and a guessed ID is wrong.
 
 ## [submit/dependent-patchsets](submit/dependent-patchsets.md)
 
@@ -304,9 +353,9 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
 - Push the applied branches without a pause to confirm, because the apply
   instruction covers the push and the server rejects a push that doesn't
   fast-forward.
-- Acknowledge every apply, the user's own patches included, through the send
-  gate of [mail/mail-send](mail/mail-send.md#before-a-public-send), because the
-  thread learns where the patches went only from the acknowledgment.
+- Acknowledge every apply, the user's own patches included, under the gate of
+  [core/publishing](core/publishing.md#before-publishing), because the thread
+  learns where the patches went only from the acknowledgment.
 
 ## [maintain/branch-model](maintain/branch-model.md)
 
@@ -335,6 +384,50 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   exactly what the public tag holds, and a failing request-pull means the tag
   there doesn't match.
 
+## [test/machine-access](test/machine-access.md)
+
+- Reach a test machine through the mechanism `$MACHINES` names for it and the
+  capability, and ask the user when it names none, because an improvised path
+  can act on the wrong machine or lose the state the named one preserves.
+- Read access credentials from a secret store or a file at the moment of use.
+  Never put them on a command line, in a script or in an overlay, because
+  command lines show up in process lists and transcripts, and files get copied.
+
+## [test/perf-comparison](test/perf-comparison.md)
+
+- [GATE] Before comparing performance: both variants ran on bare metal, on
+  performance kernels without debug instrumentation built from the same
+  configuration (one kernel for userspace variants), with the effective
+  configuration, the identity and the boot options verified and saved, because a
+  VM or a debug kernel measures the host and the instrumentation, not the
+  change.
+- Measure the metric that the mechanism changes, never a system-wide metric that
+  unrelated factors dominate, because a tangential metric hides the effect in
+  noise.
+
+## [test/remote-testing](test/remote-testing.md)
+
+- [GATE] Before a kexec, reboot, power cycle or kernel deploy: a console monitor
+  is running and capturing. A test kernel has also passed its build and boots by
+  kexec or a one-shot boot entry, never as the default, because only the console
+  records a boot or a crash that ssh can't reach, and a remote power cycle must
+  bring back a kernel that works.
+- [GATE] Before starting a test on a test machine: the console monitor is still
+  capturing, the machine runs the kernel just built with kdump loaded where it
+  has kdump, and the test is a script file, because a kexec can end the monitor
+  and drops the crash kernel, and results from a stale kernel prove nothing.
+- [GATE] Before reporting test results: the console was reviewed for the whole
+  run, the logs were copied off the machine and show no setup failures and every
+  positive marker, every planned iteration is accounted for, and machines that
+  are expensive to leave idle are off once no more runs are planned, because a
+  test that ran nothing also exits 0 with no warnings, and a partial run
+  reported as a pass hides what was never tested.
+- Edit and build on the workstation and run on the test machine. Never build on
+  a test machine or copy files that a shared filesystem already shares, because
+  the build setup lives on the workstation and a copy goes stale.
+- Never edit a script while a test machine runs it, because bash reads a script
+  while it runs and executes the edited text.
+
 ## [debug/bug-report-triage](debug/bug-report-triage.md)
 
 - Code inspection alone never confirms a reported bug. Every fix needs a runtime
@@ -347,6 +440,22 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   the verdict is wrong.
 - [GATE] Before posting a fix patchset from a triage: record each patch's
   reproducer tier in the verification table, because reviewers rely on it.
+
+## [debug/crash-debugging](debug/crash-debugging.md)
+
+- SysRq-c keeps a hung machine's state through kdump, and a power reset destroys
+  it. Never use one in place of the other, because the choice decides whether
+  the failure can be analyzed.
+- [GATE] Before triggering a crash with SysRq-c: the console monitor is
+  capturing and kdump is loaded, because the crash ends the running kernel, and
+  the console log and the dump are then the only records of its state.
+- [GATE] Before a power reset: the console log was saved and reviewed, a crash
+  dump was captured or can't be triggered, and the user accepted losing the
+  diagnostic data, because a power reset destroys the state that explains the
+  failure ([what counts](debug/crash-debugging.md#power-resets)).
+- [GATE] Before analyzing a crash dump: drgn opens the vmcore, the vmlinux is
+  from the same build as the crashed kernel, and dmesg was extracted first,
+  because a mismatched vmlinux gives wrong types and stacks without an error.
 
 ## [debug/event-tracing](debug/event-tracing.md)
 

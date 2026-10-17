@@ -42,14 +42,19 @@ AREAS = [
     ('review', 'Review and build checks', False,
      'checkpatch, build checks, patchset review and formal model checks.'),
     ('mail', 'Mail', False,
-     'Reading threads, sending mail safely, replies and the sent log.'),
+     'Reading threads from the public archives, composing and threading mail, '
+     'and writing replies.'),
+    ('mailbox', 'Mailbox', True,
+     "Access to the user's own mail account: sending mail, the sent log and "
+     'reading the inbox. Opt-in.'),
     ('submit', 'Submitting work', False,
      'Posting patches and patchsets, new versions, dependencies and GitHub pull '
      'requests.'),
     ('maintain', 'Maintaining a tree', False,
      'Branch model, applying patches, git safety, merges and pull requests.'),
     ('test', 'Testing', False,
-     'Test result layout, remote test machines, VMs and performance comparisons.'),
+     'Machine access, test result layout, remote test machines, VMs and performance '
+     'comparisons.'),
     ('debug', 'Debugging', False,
      'Crash analysis, bug report triage and event tracing.'),
     ('code', 'Kernel code', False,

@@ -3,7 +3,7 @@
 - **Load when:** a patch, a patchset or a pull request was just posted, or a
   task needs the Message-ID, base or version history of an earlier posting.
 - **Parameters:** `$SENT_LOG`
-- **Depends on:** [mail/mail-send](../mail/mail-send.md)
+- **Depends on:** [mailbox/mail-send](../mailbox/mail-send.md)
 
 $SENT_LOG is the record of what the user posted: the place to find a
 previous version's Message-ID and base before posting the next one. The
@@ -16,8 +16,8 @@ module applies when $SENT_LOG is set.
 
 ## Procedure
 1. After the post-send audit of
-   [mail/mail-send](../mail/mail-send.md#audits) passes, record each posted
-   patch, patchset and pull request in $SENT_LOG.
+   [mailbox/mail-send](../mailbox/mail-send.md#audits) passes, record each
+   posted patch, patchset and pull request in $SENT_LOG.
 2. Take the Message-ID from the git send-email output. For a mail sent with
    the sendmail tool, take it from the local sent copy.
 3. Add an entry for a new patch or patchset, or add the new version under
