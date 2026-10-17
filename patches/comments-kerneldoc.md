@@ -14,14 +14,17 @@
   because a rewrite by a later patch in the same patchset makes reviewers
   read it twice and leaves interim text in the history.
 - [GATE] Before committing a patch: no added comment narrates the code or
-  refers to sibling patches or future plans, because each goes stale as
-  soon as the code or the patchset changes.
+  refers to sibling patches or future plans, and every added kerneldoc
+  summary is capitalized, because stale comments mislead and one summary
+  form keeps kerneldoc easy to scan.
 
 ## [GATE] Checklist
 ### Before committing a patch
 - [ ] No added comment narrates the code
       ([What stays out](#what-stays-out)).
 - [ ] No added comment refers to sibling patches or future plans.
+- [ ] Every added kerneldoc summary is capitalized after the dash
+      ([Kerneldoc](#kerneldoc)).
 
 ## Procedure
 ### Checking comments in a patch
@@ -102,14 +105,12 @@
   helper with a one-line note keeps a plain comment.
 
 ### Kerneldoc
-- Follow Documentation/doc-guide/kernel-doc.rst. The summary line of a
-  function is `function_name() - Brief description`, and that of a type is
-  `struct name - Brief description`. Match the capitalization of the
-  summaries already in the file.
+- The summary line of a function is `name - Summary` and that of a type
+  `struct name - Summary`, capitalized after the dash.
 - The summary is imperative: "Destroy @cgrp", not "This function destroys
   @cgrp".
-- Describe the return value in a `Return:` section, as kernel-doc.rst
-  does.
+- Describe the return value in one imperative sentence in the body, such as
+  "Return the new owner, or NULL if ...", without a `Return:` section.
 - Kerneldoc doesn't justify the function's existence. "Allows callers to
   obtain X without poking at the opaque struct" restates the signature.
 - Kerneldoc keeps its `%CONST` and `@arg` markup.
@@ -117,3 +118,7 @@
 ## Customization
 - An overlay can record a subsystem's comment form, the user's kerneldoc
   conventions and examples from the user's own trees.
+- For trees that follow Documentation/doc-guide/kernel-doc.rst to the
+  letter, an overlay uses its `function_name() - Brief description`
+  summary, matches the capitalization already in the file, and describes
+  the return value in a `Return:` section.

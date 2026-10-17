@@ -147,15 +147,15 @@
 
 ## Reference
 ### Subject prefixes
-- With `$SUBJECT_STYLE` `standard`, `git format-patch -v N --cover-letter`
-  marks the cover `[PATCH vN 0/M]` and each patch `[PATCH vN i/M]`. A tree
-  that wants its name in the subject gets it through `--subject-prefix`:
+- With `$SUBJECT_STYLE` `cover`, the version and the target `tree/branch`
+  go on the cover subject only: `[PATCHSET v2 tree/branch] subsys: Title`,
+  and `[PATCHSET tree/branch]` for the first version. The patches come from
+  `git format-patch -n` and keep `[PATCH i/M]`. A single patch is
+  `[PATCH tree/branch]`.
+- With `standard`, `git format-patch -v N --cover-letter` marks the cover
+  `[PATCH vN 0/M]` and each patch `[PATCH vN i/M]`. A tree that wants its
+  name in the subject gets it through `--subject-prefix`:
   `--subject-prefix='PATCH net-next' -v 2` gives `[PATCH net-next v2 i/M]`.
-- With `cover`, the version, the target `tree/branch` and any patchset
-  marker go on the cover subject only, such as `[<MARKER> v2 tree/branch]`,
-  where `<MARKER>` is the cover's leading word, `PATCH` unless an overlay
-  names another. The patches come from `git format-patch -n` and keep
-  `[PATCH i/M]`. A single patch is `[PATCH tree/branch]`.
 - `--subject-prefix`, `--rfc` and `-v` are git format-patch options. git
   send-email ignores `--subject-prefix` without an error, and the patches
   go out without the marker. When a prefix is wrong, regenerate the
@@ -167,7 +167,7 @@
   gives `[MARKER i/M]` and drops PATCH.
 - A resend of an unchanged patch or patchset puts RESEND after PATCH:
   `[PATCH RESEND]` and `[PATCH v2 RESEND]`, or with `cover`, `[PATCH RESEND
-  tree/branch]` and `[<MARKER> RESEND tree/branch]`. Never `[RESEND
+  tree/branch]` and `[PATCHSET RESEND tree/branch]`. Never `[RESEND
   PATCH]`. A changed repost is a new version.
 
 ### Versions

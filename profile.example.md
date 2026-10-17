@@ -73,14 +73,12 @@ Parameters of modules you don't enable can stay unset even when required.
   checks a mail file before it is sent.
 - `$SENT_LOG`: default none. A file where posted patchsets and pull
   requests are recorded.
-- `$SUBJECT_STYLE`: default `standard`. How patch subjects carry the
-  version and the target. `standard` is the form of the kernel's
-  submitting-patches document: `git format-patch -v N` marks the cover and
-  every patch `[PATCH vN i/M]`. `cover` puts the version, the target tree
-  and branch and any patchset marker on the cover subject only, such as
-  `[<MARKER> v2 tree/branch]`, where `<MARKER>` is `PATCH` or a word an
-  overlay names. Its patches keep `[PATCH i/M]`, and a single patch is
-  `[PATCH tree/branch]`.
+- `$SUBJECT_STYLE`: default `cover`. How patch subjects carry the version
+  and the target. `cover` puts the version and the target tree and branch
+  on the cover subject only, `[PATCHSET v2 tree/branch]`. Its patches keep
+  `[PATCH i/M]`, and a single patch is `[PATCH tree/branch]`. `standard` is
+  the form of the kernel's submitting-patches document: `git format-patch
+  -v N` marks the cover and every patch `[PATCH vN i/M]`.
 
 ## Paths and machines
 

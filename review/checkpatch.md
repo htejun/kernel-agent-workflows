@@ -38,8 +38,8 @@
   [patches/line-widths](../patches/line-widths.md#auditing-a-patchset).
 - The commit description style error (GIT_COMMIT_ID) on a reference written
   as `<sha12> ("subject")`
-  ([patches/commit-tags](../patches/commit-tags.md#commit-references))
-  without the word "commit", when the user's style leaves that word out.
+  ([patches/commit-tags](../patches/commit-tags.md#commit-references)),
+  the default form, which leaves out the word "commit".
   The same error also reports a wrong ID or a subject that doesn't match
   the commit, and those are real, so it isn't passed to `--ignore`.
 - VOLATILE, "Use of volatile is usually wrong", in BPF programs, where

@@ -122,15 +122,16 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   rewrite by a later patch in the same patchset makes reviewers read it twice
   and leaves interim text in the history.
 - [GATE] Before committing a patch: no added comment narrates the code or refers
-  to sibling patches or future plans, because each goes stale as soon as the
-  code or the patchset changes.
+  to sibling patches or future plans, and every added kerneldoc summary is
+  capitalized, because stale comments mislead and one summary form keeps
+  kerneldoc easy to scan.
 
 ## [patches/commit-tags](patches/commit-tags.md)
 
-- Refer to a commit in prose by at least 12 characters of its ID and its quoted
-  subject ([form](patches/commit-tags.md#commit-references)), never by a bare
-  ID, because the subject tells the reader what the commit is and lets them
-  check the ID.
+- Refer to a commit in prose as `<sha12> ("subject")`
+  ([form](patches/commit-tags.md#commit-references)), never by a bare ID,
+  because the subject tells the reader what the commit is and lets them check
+  the ID.
 
 ## [patches/cover-letters](patches/cover-letters.md)
 

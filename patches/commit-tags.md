@@ -9,10 +9,9 @@
   [mail/mail-replies](../mail/mail-replies.md)
 
 ## Always-on rules
-- Refer to a commit in prose by at least 12 characters of its ID and its
-  quoted subject ([form](#commit-references)), never by a bare ID, because
-  the subject tells the reader what the commit is and lets them check the
-  ID.
+- Refer to a commit in prose as `<sha12> ("subject")`
+  ([form](#commit-references)), never by a bare ID, because the subject
+  tells the reader what the commit is and lets them check the ID.
 
 ## Procedure
 ### Finding the commit a fix fixes
@@ -93,24 +92,20 @@ before the commit, because a mistyped Message-ID makes a dead link. Prefer
 returns 404 for a message that is only in another list's archive.
 
 ### Combined tags
-Give each tag its own line. Reported-by: and Tested-by: from one person
-stay two tags, because Documentation/process/maintainer-tip.rst asks for
-that: combined tags such as Reported-and-tested-by: get in the way of
-automated tag extraction. A Cc: for a person who also gave a Reviewed-by:
-or Acked-by: is dropped, because the review tag already names them. Match
-the person by name, not by address, because one person may review from a
-different address than the one in the Cc.
+Combine one person's tags. Reported-by: and Tested-by: from one person
+become `Reported-and-tested-by:`. A Cc: for a person who also gave a
+Reviewed-by: or Acked-by: is dropped, because the review tag already names
+them. Match the person by name, not by address, because one person may
+review from a different address than the one in the Cc.
 
 ### Attribution tags
 - `Reported-by:` names the person who reported the bug. For an
   AI-generated report, that is the person who sent it, not the tool. Copy
   the name and address from the reporter's recent commits or mail, because
   a current signature can differ from older ones.
-- When a patch derives from someone else's diff, credit them with
-  `Co-developed-by:` and their `Signed-off-by:` when they share the
-  authorship, or with `Suggested-by:` when the patch takes their idea.
-  checkpatch reports tags outside its standard set, such as
-  Original-patch-by:, as non-standard.
+- `Original-patch-by:` credits someone whose diff this specific patch
+  derives from. `Co-developed-by:` with their `Signed-off-by:` is for
+  shared authorship, and `Suggested-by:` for an idea without a diff.
 - `Cc:` is for someone who should see the work but didn't contribute to
   this patch.
 - Re-evaluate the tags of every patch when splitting a larger patch, and
@@ -134,13 +129,16 @@ Which branch a selftest patch goes to is the tree's selftest policy in
 ([maintain/apply-patches](../maintain/apply-patches.md#choosing-the-target-branch)).
 
 ### Commit references
-- The form is `commit <sha12> ("subject")`: at least 12 hex digits of the
-  ID, then the full subject in quotes and parentheses. This command prints
-  it:
+- The form is `<sha12> ("subject")`: 12 hex digits of the ID, then the full
+  subject in quotes and parentheses, with no "commit" in front. This
+  command prints it:
 
   ```
-  git log -1 --abbrev=12 --format='commit %h ("%s")' <commit>
+  git log -1 --abbrev=12 --format='%h ("%s")' <commit>
   ```
+
+- checkpatch's GIT_COMMIT_ID check expects "commit" in front and flags this
+  form ([review/checkpatch](../review/checkpatch.md#ignored-warnings)).
 
 - A second mention repeats the form or rephrases, such as "that commit".
   It is never a bare ID.
@@ -171,5 +169,12 @@ starts. Both forms rewrite history, so the gates of
 
 ## Customization
 - The overlay records the user's tag policies, such as Fixes: tags on
-  selftest patches, combined tags, a different tag order, or commit
-  references without the word "commit".
+  selftest patches or a different tag order.
+- For trees that follow Documentation/process/maintainer-tip.rst, an
+  overlay keeps each tag on its own line instead of combining them, because
+  combined tags get in the way of automated tag extraction.
+- checkpatch reports Original-patch-by: as non-standard. For trees that
+  want only standard tags, an overlay credits a derived diff with
+  Co-developed-by: or Suggested-by: instead.
+- For trees that want submitting-patches.rst's form, an overlay writes
+  references as `commit <sha12> ("subject")`.

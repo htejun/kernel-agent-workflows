@@ -79,9 +79,8 @@ mail. TEMPLATE.md is the skeleton.
   - Pitfalls: failure modes and anonymized incidents, each with its lesson.
   - Customization: what profile parameters and overlays usually change.
 - A module needs a Procedure or a Reference section.
-- Modules outside style/ state conventions any kernel developer can follow,
-  based on upstream documentation. A style preset may replace them with one
-  developer's choices, and wins where the two differ.
+- Modules outside style/ hold the conventions of the work. A style preset
+  adds voice and taste beyond them, and wins where the two differ.
 - State a rule once, in the module that owns the action. Elsewhere, link to
   that module's section with a relative link of the form
   `../<area>/<module>.md#<section>`, even from the same area, so that links
@@ -103,8 +102,9 @@ required, and a description. Users set their own values in their profile.
 - Never write a user's actual value into a module, not even as an example.
 - In code blocks and code spans, a `$NAME` that is not a parameter is a shell
   variable. Never give a shell variable a parameter's name.
-- Defaults follow upstream kernel documentation and tools, except where a
-  parameter's description says otherwise.
+- Defaults are the established practice these workflows come from. Where
+  that practice differs from upstream kernel documentation, the module's
+  Customization section names the upstream form for trees that want it.
 
 ## Writing
 
