@@ -78,7 +78,9 @@
 
 ### Before a merge where both sides have new commits
 - [ ] The check runs before the merge is made or any resolution proposed,
-      and its result goes into the merge message.
+      and its result goes into the merge message. A merge that takes git's
+      default message, such as a for-next merge, keeps that message, and
+      the result is reported to the user instead.
 - [ ] Scope: per side, every commit since `git merge-base --all` that
       touches the affected code: the files either side changed, the
       headers and includes they share, and the files whose behavior the
@@ -213,6 +215,10 @@ require it:
 - a merge into a shared branch, other than the standard for-next merge of an
   apply the user instructed
 - a rebase, amend or filter-branch of anything on a remote
+
+Amending a commit that was not pushed yet, such as a tag fix-up during an
+apply, is not a rewrite of published history, even on a branch that is
+published, because nobody has fetched that commit.
 
 ### What instructions mean
 - "Pull X into Y" means a merge or a fast-forward, never a rebase of X for

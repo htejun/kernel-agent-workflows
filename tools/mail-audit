@@ -29,9 +29,7 @@ message and every header parse without defects; no Resent-* headers, which
 make a sendmail tool reading recipients from headers use Resent-To,
 Resent-Cc and Resent-Bcc instead of To, Cc and Bcc; exactly one non-empty
 From and Subject; at most one To, Cc, Bcc, In-Reply-To, References, Date
-and Message-ID; no header line over 998 columns; every address complete; no
-bare "--" signature separator line, which must be "-- " (skipped in files
-that hold a diff).
+and Message-ID; no header line over 998 columns; every address complete.
 
 Mail for the sendmail tool (one FILE): the Subject equals SUBJECT; the
 From address belongs to ACCOUNT; the sending address is not in To or Cc;
@@ -110,19 +108,12 @@ def check_common(path, msg, lines):
     for field in (*RECIPIENT_FIELDS, 'In-Reply-To', 'References', 'Date', 'Message-ID'):
         if len(msg.get_all(field, [])) > 1:
             raise ValueError(f'{path}: duplicate {field} header')
-    body = None
     for number, line in enumerate(lines, 1):
         if not line:
-            body = lines[number:]
             break
         if len(line) > 998:
             raise ValueError(f'{path}: header line {number} exceeds 998 columns')
-    body = body or []
     addresses(msg, ('From', *RECIPIENT_FIELDS))
-    # a removed line holding "-" reads as "--" in a diff
-    if not any(line.startswith(b'diff --git ') for line in body):
-        if any(line.rstrip(b'\r') == b'--' for line in body):
-            raise ValueError(f'{path}: bare "--" signature separator; it must be "-- "')
 
 
 def check_sender(path, msg, accounts, account):

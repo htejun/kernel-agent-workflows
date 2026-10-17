@@ -5,7 +5,7 @@
   commits the branch that holds it, or turns the patches into git commits
   or mail for a review, a posting, a pull request or an apply.
 - **Parameters:** `$PATCH_MGMT`, `$COMMIT_WORD`, `$PLAN_DIR`, `$SCRATCH`,
-  `$KAW_DIR`, `$WIDTHS`, `$BUILD`
+  `$WORKTREE_ROOT`, `$KAW_DIR`, `$WIDTHS`, `$BUILD`
 - **Depends on:** [core/git-safety](../core/git-safety.md),
   [core/safe-operations](../core/safe-operations.md),
   [core/stop-and-ask](../core/stop-and-ask.md),
@@ -40,8 +40,9 @@ gives the quilt form of each.
   file is the commit.
 - [GATE] Before pushing or popping patches: the user asked for it or for
   the rework, edit, commit or sync it is part of, or it moves only the
-  agent's new patches or runs in the agent's scratch worktree, and `quilt
-  diff -z` is empty, because the user may be working on the stack.
+  agent's new patches or runs in a worktree the agent made for a check,
+  and `quilt diff -z` is empty, because the user may be working on the
+  stack.
 - [GATE] Before resolving a reject: it came from a rework of the agent's
   own patches that the user asked for, and every line of every hunk is
   accounted for. Any other reject, offset or fuzz stops the work, because a
@@ -92,7 +93,7 @@ gives the quilt form of each.
       pop, itself or as a step of a rework or an edit; it is the `quilt pop
       -a` of a commit $COMMIT_WORD authorized or of a sync the user asked
       for; it moves only patches the agent created in the task; or it runs
-      in a worktree the agent made under $SCRATCH for a check. Never push
+      in a worktree the agent made under $WORKTREE_ROOT for a check. Never push
       existing patches as a side effect of stacking new work. Ask instead.
 - [ ] `quilt diff -z` is empty. Otherwise refresh first, or get the user's
       approval to drop the change.
@@ -349,12 +350,19 @@ their way back up. Resolve them in place, one patch at a time.
 Posting, a pull request and a review need the patches as git commits. `git
 quiltimport` makes one commit per patch, with the author from `From:` and
 the subject from `Subject:`.
-1. In the tree the commits go to, create a branch from the base, named by
-   its branch name: `git checkout -b <branch> <base>`. A new version gets a
-   new branch, such as `<branch>-v2`. Never reset a branch that was posted
-   or pushed. An import onto a branch a publication tree publishes is an
-   apply and waits for the user's word for it
+1. Create a branch from the base, named by its branch name, in a new
+   worktree under $WORKTREE_ROOT of the tree the commits go to, because the
+   import, the build and git format-patch run there and a publication tree
+   takes no builds
+   ([core/safe-operations](../core/safe-operations.md#publication-trees)):
+   `git -C <tree> worktree add -b <branch> $WORKTREE_ROOT/<topic>-post
+   <base>`. A new version gets a new branch, such as `<branch>-v2`. Never
+   reset a branch that was posted or pushed. An import onto the tree's
+   devel, fixes or integration branch is an apply and waits for the user's
+   word for it
    ([maintain/apply-patches](../maintain/apply-patches.md#always-on-rules)).
+   A new branch for posting the user's own patchset is part of preparing
+   the posting and needs no such word.
 2. When the series holds more than the patches to import, write a series
    file under $SCRATCH with only those, in order. git quiltimport imports
    every line of the series it gets, skipping comments.
@@ -376,10 +384,11 @@ the subject from `Subject:`.
 6. git quiltimport applies each patch with `git apply -C1`, which accepts
    context that drifted. When the import starts from the quilt-on-git
    branch's base, as for a pull request, compare the result with the
-   stack. In a worktree of the quilt-on-git branch under $SCRATCH with
-   every patch pushed, the source files must match the imported branch.
-   Marking the untracked files intent-to-add, by name, makes the files that
-   patches create show in the diff:
+   stack. In a worktree of the quilt-on-git branch that the agent makes
+   under $WORKTREE_ROOT for this check, never the user's own, with every
+   patch pushed, the source files must match the imported branch. Marking
+   the untracked files intent-to-add, by name, makes the files that patches
+   create show in the diff:
 
    ```
    git ls-files -o --exclude-standard -z | xargs -0 git add -N --
@@ -396,9 +405,10 @@ These steps replace the git steps of
 change commits.
 1. Before step 1 of
    [posting a patchset](../submit/patchset-posting.md#posting-a-patchset),
-   import the patches to post onto a new branch from the base, in the tree
-   the posting comes from
-   ([importing](#importing-the-patches-into-a-git-branch)).
+   import the patches to post onto a new branch from the base, in a
+   worktree of the tree the posting comes from
+   ([importing](#importing-the-patches-into-a-git-branch)). The posting
+   steps that follow run in that worktree.
 2. For a new version, this replaces steps 4 and 7 of
    [posting a new version](../submit/patchset-posting.md#posting-a-new-version):
    make the changes and the vN notes in the patch files, then import the
@@ -588,7 +598,7 @@ the final commit and the push.
   `git format-patch` or the reviewers' worktrees: import the patches first
   ([importing](#importing-the-patches-into-a-git-branch)).
 - **Patchset review**: import the stack onto a branch from the base in a
-  worktree under $SCRATCH and review that range
+  worktree under $WORKTREE_ROOT and review that range
   ([review/patchset-review](../review/patchset-review.md#tree-state-for-each-reviewer)).
   Record the reviewed head by patch name, because the imported commits
   don't last. A review of one patch takes the patch the user names, or the

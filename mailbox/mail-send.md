@@ -82,6 +82,9 @@ $MAIL_AUDIT --format-patch --from-account <address>=<account> --account <account
    && $SENDMAIL -a <account> --read-recipients < /path/to/mail.txt
    ```
 
+   A reply or an acknowledgment passes `--reply-to` with the original
+   message file, so that the audit checks In-Reply-To against the
+   original's Message-ID and finds every recipient of the original kept.
    In both audit commands, pass one `--from-account` for every entry of
    $MAIL_ACCOUNTS, so that a From that belongs to another account fails.
    Leave out `--self-copy` when $SELF_COPY is unset. Another sendmail tool

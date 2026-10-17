@@ -72,8 +72,8 @@ Patch descriptions, code comments, cover letters, tags and line widths.
 checkpatch, build checks, patchset review and formal model checks.
 
 - [review/checkpatch](review/checkpatch.md): running scripts/checkpatch.pl on
-  patches before posting or applying them, or deciding what to do about a
-  checkpatch warning.
+  patches before posting them, or deciding what to do about a checkpatch
+  warning.
 - [review/formal-model-check](review/formal-model-check.md): `$FORMAL_MODEL` is
   `on` and a patchset adds or changes a protocol in which two or more concurrent
   contexts coordinate through shared state, or the user asks for a TLA+ model, a

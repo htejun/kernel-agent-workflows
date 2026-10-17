@@ -69,9 +69,10 @@ A batch starts at step 1. A single report starts at step 5.
      function claimed broken at init that can't run until much later in
      boot, and init code claimed to race with code that runs only after SMP
      bring-up, BPF program attach or full RCU setup.
-6. Put claims that hedge on reachability in real-defer at once: "latent",
-   "could become a bug if", "depends on link order", "may be exploitable in
-   a future config". Build no reproducer and ship no defensive-only fix for
+6. Label claims that hedge on reachability as unreachable today at once,
+   and bucket them in real-defer (step 17): "latent", "could become a bug
+   if", "depends on link order", "may be exploitable in a future config".
+   Build no reproducer and ship no defensive-only fix for
    them, because a fix for a path no caller reaches fixes no bug. Catches:
    an unwind path that leaves a dangling pointer no caller dereferences.
 7. For each claim still open, check in this order:
@@ -97,20 +98,21 @@ A batch starts at step 1. A single report starts at step 5.
    7. For a race on a flag, check whether the flag only ever flips one way.
       Catches: a racy `WARN_ON_ONCE()` read of such a flag, which is benign
       and needs a `data_race()` annotation at most, not a fix.
-8. Put the claim in one bucket:
-   - real-fix-now: confirmed and reachable today. It goes into the patchset
-     once its reproducer fires and the fix silences it.
-   - real-defer: confirmed, but unreachable today, triggered only by a
-     config that is hard to build, or trivial to fix when the code is next
-     touched. It stays out of the patchset.
-   - suspect-investigate: not settled. Plan a deeper read, an experiment or
-     another reproducer angle, and ship no fix for it.
-   - fp-drop: disproved. Record in one sentence the validation check, guard
-     or init path the report missed.
+8. Label the claim with what the reading found. No label confirms a bug,
+   because only a reproducer does:
+   - reachable: it survives every check, and a caller reaches it today. It
+     goes on to a reproducer.
+   - unreachable today: it survives every check, but no caller reaches it,
+     or only a config that is hard to build does. It needs no reproducer.
+   - suspect: the checks turned up problems but settle nothing. Plan a
+     deeper read or an experiment.
+   - disproved: record in one sentence the validation check, guard or init
+     path the report missed.
 9. Take the findings one at a time, even when the user asked for a fix
-   patchset over the whole batch. Present each with its bucket and wait for
-   the user's confirmation. For real-fix-now, build the reproducer, show the
-   result before and after the fix, and refine the fix. Then move on.
+   patchset over the whole batch. Present each with its label and wait for
+   the user's confirmation. For a reachable claim, build the reproducer,
+   show the result before and after the fix, and refine the fix. Then
+   bucket it (step 17) and move on.
 
 ### Reproducing and fixing
 10. Build a reproducer that produces a kernel-visible signal on the base
@@ -139,18 +141,32 @@ A batch starts at step 1. A single report starts at step 5.
     internally consistent.
 
 ### Recording and posting
-17. Keep a table of every original finding, its bucket and its one-line
-    reason in `$SCRATCH/<batch>/outcomes.md`, current as the work goes, so
-    the user can audit it and ask for the status at any time.
-18. Write each description as
+17. After the reading and the reproduction, put each finding in one bucket:
+    - real-fix-now: survives every check and is reachable today. It is
+      confirmed only when its reproducer fires on the base, and it goes
+      into the patchset once the fix silences that reproducer.
+    - real-defer: survives every check, but is unreachable today, triggered
+      only by a config that is hard to build, or trivial to fix when the
+      code is next touched. It is confirmed only when a reproducer fires on
+      the base, and it stays out of the patchset.
+    - suspect-investigate: not settled, or its reproducer never fired. Plan
+      a deeper read, an experiment or another reproducer angle, and ship no
+      fix for it.
+    - fp-drop: disproved. Record in one sentence the validation check, guard
+      or init path the report missed.
+18. For a batch, keep a table of every original finding, its bucket and
+    its one-line reason in `$SCRATCH/<batch>/outcomes.md`, current as the
+    work goes, so the user can audit it and ask for the status at any time.
+    A single report needs no table.
+19. Write each description as
     [patches/patch-descriptions](../patches/patch-descriptions.md#by-kind-of-patch)
     gives for a fix for a reported bug, and credit the reporter with
     Reported-by: as
     [patches/commit-tags](../patches/commit-tags.md#attribution-tags) gives.
-19. Before rebasing the patchset, keep the old branch as
+20. Before rebasing the patchset, keep the old branch as
     [core/git-safety](../core/git-safety.md#before-rewriting-a-branch)
     describes.
-20. Verify the [GATE] checklist, then post the patchset per
+21. Verify the [GATE] checklist, then post the patchset per
     [submit/patchset-posting](../submit/patchset-posting.md#posting-a-patchset)
     under the gate in
     [core/publishing](../core/publishing.md#before-publishing).

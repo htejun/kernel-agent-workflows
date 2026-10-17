@@ -1,7 +1,7 @@
 # Checkpatch
 
-- **Load when:** running scripts/checkpatch.pl on patches before posting or
-  applying them, or deciding what to do about a checkpatch warning.
+- **Load when:** running scripts/checkpatch.pl on patches before posting
+  them, or deciding what to do about a checkpatch warning.
 - **Parameters:** `$WIDTHS`
 - **Depends on:** [patches/line-widths](../patches/line-widths.md)
 

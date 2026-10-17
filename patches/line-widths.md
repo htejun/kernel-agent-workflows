@@ -29,7 +29,9 @@ code comments and kerneldoc, and code.
       ([Checking a commit](#checking-a-commit)) prints nothing, or each
       finding is one of the [Waivers](#waivers).
 - [ ] Every paragraph with a word-level edit was reflowed whole.
-- [ ] Only text this patch owns was refilled.
+- [ ] Only text this patch owns was refilled. A contributor's text in an
+      apply is never refilled
+      ([maintain/apply-patches](../maintain/apply-patches.md#always-on-rules)).
 - [ ] clang-format was not run.
 - [ ] The added text is ASCII.
 
@@ -141,8 +143,15 @@ code comments and kerneldoc, and code.
 - `check PATCH...` reads patch files of one commit each, with plain From:
   and Subject: headers or as git format-patch writes them. It checks the
   description and the comment and C code lines the patch adds, in both
-  directions, and exits 1 on findings. Brace placement is left to
-  checkpatch.
+  directions, and exits 1 on findings.
+- It also flags a `{` alone on an added C line where
+  Documentation/process/coding-style.rst puts the brace at the end of the
+  line before: after a control statement header, even one that spans several
+  lines, after `else`, `do` or `=`, or after another header, such as a
+  struct, union or enum one. `--no-braces` turns this check off. After a
+  line that ends in `;`, `}`, `:` or a block's `{`, the brace opens a naked
+  block scope, and `--no-naked-blocks` turns that check off. A brace after a
+  function header or one that opens an initializer element is left alone.
 - It fills prose in blocks: a paragraph, or a bullet or numbered item with
   its continuation lines, in descriptions and comments alike. It skips
   tags, reference list lines and preformatted lines. A preformatted line is

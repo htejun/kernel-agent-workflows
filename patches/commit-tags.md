@@ -80,7 +80,10 @@ Tags form one block after the description, in this order:
 
 Each `Co-developed-by:` is followed directly by its co-author's
 `Signed-off-by:`, among the sign-offs. Review and ack tags go after the
-Signed-off-by, never before it. A Fixes: tag goes in the block, never in
+author's Signed-off-by, never before it. When a maintainer applies a
+patch, the tags collected from the thread go after the tags the patch
+carries and before the committer's Signed-off-by, which stays last. This
+is the order b4 writes. A Fixes: tag goes in the block, never in
 the body of the description. checkpatch warns when a Reported-by: isn't
 followed by a Closes: or a Link:.
 

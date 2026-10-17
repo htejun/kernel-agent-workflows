@@ -20,8 +20,19 @@ run over.
 
 Code checks: overflow past the code limit, and premature wraps (a
 continuation line -- unclosed paren depth, or the previous line ending in
-"=", "&&", "||" -- whose first token still fits on the previous line).
-Brace placement is left to checkpatch.
+"=", "&&", "||" -- whose first token still fits on the previous line). A "{"
+alone on a line is checked against the added code before it.
+Documentation/process/coding-style.rst puts the opening brace last on the
+line for every block but a function body, so the brace is flagged after a
+control statement header (if, for, while, switch, and loop and guard macros
+such as bpf_for() and scoped_guard()), even one whose condition spans
+several lines, and after a line that ends in "else", "do" or "=", or in
+anything not named below, such as a struct, union or enum header. After a
+line that ends in ";", "}", ":" or a "{" that opens a block, the brace opens
+a naked block scope and is flagged. After any other line that ends in ")",
+such as a function header, and after a "," or a "{" that opens an
+initializer, it is left alone. --no-braces and --no-naked-blocks turn these
+two checks off.
 
 usage:
   textfill [OPTIONS] check PATCH...   check patch files, exit 1 on findings
@@ -39,6 +50,9 @@ options (anywhere on the command line):
   --code N      code limit, default 94
   --tag NAME    treat "NAME:" lines in a description as tags, like
                 Signed-off-by:, which are never filled; repeatable
+  --no-braces   don't flag a "{" that belongs at the end of the line before
+  --no-naked-blocks
+                don't flag a "{" that opens a naked block scope
 
 A patch file holds one commit, with plain From:/Subject: headers or as git
 format-patch writes it. The description ends at the first "---" line.
@@ -50,6 +64,8 @@ import sys
 DESC_W = 76
 COMMENT_W = 80
 CODE_W = 94
+# the brace checks that run; --no-braces and --no-naked-blocks drop them
+BRACE_CHECKS = {"braces", "naked-blocks"}
 
 STD_TAGS = ["Signed-off-by", "Acked-by", "Reviewed-by", "Tested-by", "Reported-by",
             "Reported-and-tested-by", "Suggested-by", "Co-developed-by",
@@ -198,14 +214,57 @@ def strip_code(line):
     s = re.sub(r"/\*.*", "", s)
     return s
 
+CTRL_HDR_RE = re.compile(
+    r"^\}?\s*(?:else\s+)?(?:if|for|while|switch)\s*\(|"
+    r"^(?:bpf_for|bpf_repeat|bpf_for_each|scoped_guard|guard)\s*\(")
+
+def brace_kind(before, enclosing):
+    """Whether a "{" opens an initializer, from the code character before
+    it and the kind of the brace enclosing it: True after "=" or ",", the
+    enclosing kind after "{", None when nothing comes before it, and False,
+    a block, after anything else."""
+    if not before:
+        return None
+    if before in "=,":
+        return True
+    if before == "{":
+        return enclosing
+    return False
+
+def brace_finding(run, enclosing):
+    """Classify a "{" alone on its line. run holds the stripped added code
+    lines right before it, and enclosing is the brace_kind() of the
+    innermost open brace. Return (check, message), or None when the brace
+    belongs on its own line, such as after a function header or opening an
+    initializer element."""
+    pstr = run[-1].rstrip()
+    if pstr.endswith(")"):
+        # the header starts where the parentheses of its condition balance
+        bal = 0
+        for s in reversed(run):
+            bal += s.count(")") - s.count("(")
+            if bal <= 0:
+                if CTRL_HDR_RE.match(s.lstrip()):
+                    return "braces", "brace on its own line after control header"
+                return None
+        return None
+    if pstr.endswith(",") or (pstr.endswith("{") and enclosing is not False):
+        return None
+    if pstr.endswith((";", "{", "}", ":")):
+        return "naked-blocks", "naked block scope"
+    return "braces", "brace should cuddle onto the previous line"
+
 def check_diff(path, lines, start_lnum, findings):
     """Check added comment lines (fill to COMMENT_W) and added code lines
-    (fill to CODE_W). Code checks cover C files only; rustfmt owns Rust
-    formatting."""
+    (fill to CODE_W, brace placement). Code checks cover C files only;
+    rustfmt owns Rust formatting."""
     prev = None         # (lnum, full_line, comment kind) of previous added line
     code_prev = None    # (lnum, full_line, stripped) of previous added code line
+    run = []            # stripped consecutive added code lines, up to code_prev
     depth = 0           # unclosed paren depth across consecutive added code lines
     cont = None         # text column of the current comment bullet
+    braces = []         # brace_kind() of each open brace in the added lines
+    last = ""           # last code character of the added lines
     c_file = True
     for i, raw in enumerate(lines):
         lnum = start_lnum + i
@@ -215,8 +274,11 @@ def check_diff(path, lines, start_lnum, findings):
                 c_file = m.group(1).endswith((".c", ".h"))
             prev = None
             code_prev = None
+            run = []
             depth = 0
             cont = None
+            braces = []
+            last = ""
             continue
         line = raw[1:]
         content = comment_content(line)
@@ -237,6 +299,7 @@ def check_diff(path, lines, start_lnum, findings):
                 check_pair(path, prev[0], prev[1], content.strip(),
                            COMMENT_W, "comment", findings)
             code_prev = None
+            run = []
             depth = 0
         elif not c_file:
             cont = None
@@ -245,6 +308,7 @@ def check_diff(path, lines, start_lnum, findings):
                 findings.append((path, lnum, "code",
                                  f"overflows {CODE_W} ({vlen(line)})"))
             code_prev = None
+            run = []
             depth = 0
             cont = None
         elif line.strip():
@@ -253,7 +317,9 @@ def check_diff(path, lines, start_lnum, findings):
                                  f"overflows {CODE_W} ({vlen(line)})"))
             stripped = strip_code(line)
             if line.strip() == "{":
-                pass            # brace placement is checkpatch's job
+                hit = brace_finding(run, braces[-1] if braces else None) if run else None
+                if hit and hit[0] in BRACE_CHECKS:
+                    findings.append((path, lnum, "code", hit[1]))
             elif code_prev is not None:
                 # depth is the unclosed depth at the end of code_prev
                 pstr = code_prev[2].rstrip()
@@ -271,10 +337,19 @@ def check_diff(path, lines, start_lnum, findings):
             depth = max(depth, 0)
             if stripped.rstrip().endswith((";", "{", "}")):
                 depth = 0
+            for ch in stripped:
+                if ch == "{":
+                    braces.append(brace_kind(last, braces[-1] if braces else None))
+                elif ch == "}" and braces:
+                    braces.pop()
+                if not ch.isspace():
+                    last = ch
             code_prev = (lnum, line, stripped)
+            run.append(stripped)
             cont = None
         else:
             code_prev = None
+            run = []
             depth = 0
             cont = None
 
@@ -449,13 +524,17 @@ def do_refill(path):
     return 0
 
 def parse_options(args):
-    """Apply the limit and tag options wherever they appear, and return the
-    remaining arguments."""
+    """Apply the limit, tag and brace check options wherever they appear,
+    and return the remaining arguments."""
     global DESC_W, COMMENT_W, CODE_W, TAG_RE
     rest = []
     tags = []
     i = 0
     while i < len(args):
+        if args[i] in ("--no-braces", "--no-naked-blocks"):
+            BRACE_CHECKS.discard(args[i][len("--no-"):])
+            i += 1
+            continue
         name, eq, val = args[i].partition("=")
         if name not in ("--desc", "--comment", "--code", "--tag"):
             rest.append(args[i])

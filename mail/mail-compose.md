@@ -23,10 +23,11 @@ Who sends the result is in
 - [ ] The first line of every mail for a sendmail tool is a header
       ([Mail files](#mail-files)).
 - [ ] Every path in the command is absolute, and every file is named.
-- [ ] Format-patch output goes through git send-email with the recipients
-      on the command line, `--confirm=never`, no Bcc header in the files
-      and no `--suppress-cc`, and its dry run listed the full recipient set
-      on every message ([git send-email](#the-git-send-email-command)).
+- [ ] Format-patch output and its hand-written cover letter go through git
+      send-email with the recipients on the command line,
+      `--confirm=never`, no Bcc header in the files and no `--suppress-cc`,
+      and its dry run listed the full recipient set on every message
+      ([git send-email](#the-git-send-email-command)).
 - [ ] A patchset goes out threaded, in one invocation.
 - [ ] The thread root follows [mail/thread-roots](../mail/thread-roots.md).
 - [ ] A reply keeps every recipient of the message it answers in To or Cc
@@ -42,17 +43,12 @@ Who sends the result is in
    and set In-Reply-To and References.
 3. Follow the [mail file rules](#mail-files) and the
    [recipient rules](#recipients).
-4. Check the signature separator line with `grep -c '^-- $' <file>`. When
-   an editor or a file-writing tool stripped its trailing space, restore it
-   with an explicit edit of that one line, never an in-place substitution
-   over the file
-   ([core/safe-operations](../core/safe-operations.md#before-editing-a-code-or-patch-file)),
-   and
-   check again.
 
 ### The git send-email command
 1. Use git send-email for format-patch output only: a single patch or a
-   patchset. Never send a hand-written reply file with it.
+   patchset, with its hand-written cover letter when the patchset has one
+   ([submit/patchset-posting](../submit/patchset-posting.md#posting-a-patchset)).
+   Never send a hand-written reply file with it.
 2. git send-email takes recipients per message. A cover letter's To and Cc
    don't reach the patches. Put every recipient on the command line with
    `--to` and `--cc`. Who the recipients are is in
@@ -100,8 +96,6 @@ Who sends the result is in
   line is fine.
 - A non-ASCII display name is RFC 2047 encoded, never transliterated or
   dropped: `=?UTF-8?Q?Ren=C3=A9_Example?= <rene@example.org>`.
-- The signature separator is `-- ` with a trailing space. Mail readers
-  don't treat a bare `--` as a separator.
 - A follow-up to a sent file goes in a new numbered file: when `reply2`
   is sent, write `reply3`.
 
@@ -120,4 +114,3 @@ Who sends the result is in
   list rejected it.
 - A cover letter written days earlier sat in the current directory and
   went out instead of the new one.
-- Two replies went out with a bare `--` signature separator.

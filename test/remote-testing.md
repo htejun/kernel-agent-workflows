@@ -23,16 +23,22 @@ crashes goes to
 [debug/crash-debugging](../debug/crash-debugging.md#machine-stall).
 
 ## Always-on rules
+- On a test machine that other people or other sessions may use, check for
+  their work before a kexec, reboot, power-off, deploy or a run that loads
+  the machine, and ask the user when something is running, because their
+  test or model-check batch is lost or skewed when the machine goes away
+  or gets busy under it ([shared machines](#shared-machines)).
 - [GATE] Before a kexec, reboot, power cycle or kernel deploy: a console
-  monitor is running and capturing. A test kernel has also passed its build
-  and boots by kexec or a one-shot boot entry, never as the default,
-  because only the console records a boot or a crash that ssh can't reach,
-  and a remote power cycle must bring back a kernel that works.
+  monitor is running and capturing, and nobody else's work runs on a shared
+  machine. A test kernel has also passed its build and boots by kexec or a
+  one-shot boot entry, never as the default, because only the console
+  records a boot or a crash that ssh can't reach, and a remote power cycle
+  must bring back a kernel that works.
 - [GATE] Before starting a test on a test machine: the console monitor is
-  still capturing, the machine runs the kernel just built with kdump loaded
-  where it has kdump, and the test is a script file, because a kexec can
-  end the monitor and drops the crash kernel, and results from a stale
-  kernel prove nothing.
+  still capturing, nobody else's work runs on a shared machine, the machine
+  runs the kernel just built with kdump loaded where it has kdump, and the
+  test is a script file, because a kexec can end the monitor and drops the
+  crash kernel, and results from a stale kernel prove nothing.
 - [GATE] Before reporting test results: the console was reviewed for the
   whole run, the logs were copied off the machine and show no setup
   failures and every positive marker, every planned iteration is accounted
@@ -52,6 +58,9 @@ crashes goes to
 - [ ] A console monitor for the machine is running and capturing: its log
       grows, or a marker written to /dev/kmsg on the machine shows up in it
       ([console monitoring](#console-monitoring)).
+- [ ] On a machine that others or other sessions may use, the check for
+      their work found nothing running, or the user said to go ahead
+      ([shared machines](#shared-machines)).
 - [ ] For a test kernel, the build exited 0 with no errors
       ([review/kernel-build](../review/kernel-build.md)).
 - [ ] When the deploy reads the kernel from the shared filesystem, the
@@ -62,6 +71,9 @@ crashes goes to
 ### Before starting a test on a test machine
 - [ ] The console monitor is still running and capturing. A kexec or a
       reboot can end it.
+- [ ] On a machine that others or other sessions may use, the check for
+      their work found nothing that the test would disturb, or the user said
+      to go ahead ([shared machines](#shared-machines)).
 - [ ] The machine answers over ssh.
 - [ ] The machine runs the kernel just built: `uname -r` and the build
       number in /proc/version match the build.
@@ -89,9 +101,10 @@ crashes goes to
 - [ ] Material anomalies were triaged from the saved logs. Unresolved causes
       and incomplete cases are reported as such, within the agreed scope.
 - [ ] Once no more runs are planned, a machine that the overlay marks as
-      expensive to leave idle was powered off if it was used, the power-off
-      was confirmed through its power control, and its console monitor was
-      stopped.
+      expensive to leave idle was powered off if it was used and the check
+      for other work found nothing running
+      ([shared machines](#shared-machines)), the power-off was confirmed
+      through its power control, and its console monitor was stopped.
 
 ## Procedure
 ### Deploying a test kernel
@@ -192,7 +205,8 @@ crashes goes to
   $ROOT_OK_HOSTS without asking, including a VM left from an earlier
   session, with the power mechanism $MACHINES names for it
   ([test/machine-access](../test/machine-access.md#power-control)). The
-  console monitor gate still applies. A machine that hung or
+  console monitor gate and the check for other work
+  ([shared machines](#shared-machines)) still apply. A machine that hung or
   crashed goes through the
   [machine stall procedure](../debug/crash-debugging.md#machine-stall)
   first, and its power reset through
@@ -202,6 +216,22 @@ crashes goes to
   nothing. Boot the fresh build first.
 - Keep files that must survive on a test machine in a persistent
   directory, never in /tmp, which a reboot or kexec clears.
+
+### Shared machines
+A test machine may serve other people, or other sessions of the same user,
+at the same time. Before an action that takes the machine away or loads
+it, look for their work:
+- logged-in users, with `who`
+- long-running processes, such as test scripts and their harnesses,
+  schedulers under test, model-check batches and builds, with `ps -eo
+  pid,etime,args`
+- the working directories those leave behind, such as a model checker's
+  state directory
+- recent activity in the console log
+
+When something is running that the agent didn't start, stop and ask the
+user, naming what runs and since when. Never kill another session's
+process or VM. The overlay names what usually runs on each machine.
 
 ### Console monitoring
 - The console is the authoritative record of OOMs, panics, lockdep reports
@@ -244,7 +274,7 @@ Test machines can mount the workstation's working trees, with the mechanism
   right after a kexec, and then into a persistent directory.
 
 ### Remote shells
-- A test machine's login shell may not be bash, as with fish. Run bash
+- A test machine's login shell may not be bash. Run bash
   syntax over ssh, such as an environment prefix (`FOO=x cmd`), `$?`, or
   `&&` chains with redirects, through `ssh box1 'bash -c "..."'`.
 - A process that inherits SIGINT blocked or ignored doesn't stop on

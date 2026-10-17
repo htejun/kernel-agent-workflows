@@ -20,9 +20,10 @@ wrong.
   improvised path can act on the wrong machine or lose the state the named
   one preserves.
 - Read access credentials from a secret store or a file at the moment of
-  use. Never put them on a command line, in a script or in an overlay,
-  because command lines show up in process lists and transcripts, and files
-  get copied.
+  use, and never write them into a command, a script or an overlay,
+  because transcripts and files get copied. Prefer a tool's file or
+  environment option to a password argument, because command lines show up
+  in process lists ([pitfalls](#pitfalls)).
 
 ## Procedure
 ### Adding a machine
@@ -50,6 +51,9 @@ wrong.
    listed, or a capability listed as none, means asking the user.
 2. A power reset and a crash trigger pass their gates in
    [debug/crash-debugging](../debug/crash-debugging.md#gate-checklist) first.
+3. On a machine that others or other sessions may use, check for their
+   work before taking the machine away or loading it
+   ([test/remote-testing](../test/remote-testing.md#shared-machines)).
 
 ## Reference
 ### Shell
@@ -414,8 +418,10 @@ new launch
 ([test/vm-testing](../test/vm-testing.md#booting-a-new-kernel)).
 
 ## Pitfalls
-- A wrapper that passes the BMC password with `-P` shows it to every user
-  of the workstation in the process list. Use `-f` or `-E`.
+- ipmitool overwrites a `-P` password in its own command line once it
+  parses its options, so the password shows in the process list only
+  between the start and the parse. `-f` or `-E` keeps it off the command
+  line entirely.
 
 ## Customization
 - `$MACHINES` names each machine's mechanisms. The overlay holds the hosts,

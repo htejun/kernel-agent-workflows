@@ -90,7 +90,8 @@ and wins where they differ.
   function or of the branch block, or split out a helper if the block is
   that big. Loop-body locals go at the top of the loop body. A declaration
   in the middle of a body is fine when it has to sit inside an `#ifdef`:
-  the block made for scope is the problem, not the position.
+  the block made for scope is the problem, not the position. tools/textfill
+  checks for such blocks by default.
 - Every state of a state machine and every transition earns its place.
   Identify the ownership phases first, then the number of states. Don't
   fold two states because a window is zero on one path if that forces an
@@ -304,7 +305,7 @@ These add to
   description.
 
 ## Pitfalls
-- A patch that added a notification for an operation took six review
+- A patch that added a notification for an operation took several review
   rounds, each moving something that could have been right from the start:
   its file, its static key, its names and its comment wording. Settle them
   before the first draft.

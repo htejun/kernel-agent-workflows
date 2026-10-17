@@ -82,11 +82,15 @@ A finished draft becomes a mail file as
 - The body is one sentence, `Applied to <tree>/<branch>.`, then the user's
   closing and signature. No greeting.
 - A single-patch acknowledgment quotes nothing from the patch. A patchset
-  acknowledgment quotes the cover letter's shortlog and says
+  acknowledgment quotes the cover letter's shortlog, with no
+  `On <date>, <Name> wrote:` line above it, and says
   `Applied 1-N to <tree>/<branch>.`
 - Changes made while applying:
-  - Tags only: `Applied to <tree>/<branch> with the following tags
-    added:`, then the tags, indented.
+  - Tags only: when the applied commits carry tags collected from the
+    thread, such as Reviewed-by, Acked-by or Tested-by, the applied line
+    says so, `Applied to <tree>/<branch> with the following tags added:`,
+    then the tags, indented. A patchset acknowledgment adds the same clause
+    to `Applied 1-N to <tree>/<branch>`.
   - A trivial fix-up: one clause in the applied line, such as "with an
     unnecessary line break removed", and no diff.
   - A dropped tag, such as the Fixes tag stripped from a selftest patch

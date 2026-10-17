@@ -32,10 +32,8 @@ Quirks of the Claude Code harness that the other modules' rules depend on.
 - Bash calls sent in one response are the parallel calls of
   [core/safe-operations](../core/safe-operations.md#before-a-shell-command-that-targets-a-repository).
 - The Edit and Write tools strip trailing whitespace from the lines they
-  write. A mail signature's `-- ` becomes `--`
-  ([mail/mail-compose](../mail/mail-compose.md#building-a-mail-file)), and
-  a diffstat line in a patch header loses the trailing space its format
-  has, so a header edit stops short of the diffstat.
+  write. A diffstat line in a patch header loses the trailing space its
+  format has, so a header edit stops short of the diffstat.
 
 ### Sub-agents
 - A sub-agent runs on the parent's model

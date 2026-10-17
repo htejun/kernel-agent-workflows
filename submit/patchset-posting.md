@@ -4,7 +4,7 @@
   including RFC and resend postings, or collecting review tags from a
   previous posting.
 - **Parameters:** `$SUBJECT_STYLE`, `$TREES`, `$SENT_LOG`, `$SCRATCH`,
-  `$SEND_TOKEN`
+  `$WORKTREE_ROOT`, `$SEND_TOKEN`
 - **Depends on:** [core/evidence-discipline](../core/evidence-discipline.md),
   [core/git-safety](../core/git-safety.md),
   [patches/patch-descriptions](../patches/patch-descriptions.md),
@@ -54,13 +54,13 @@
    ([submit/dependent-patchsets](../submit/dependent-patchsets.md)).
 2. Build every stage, as
    [review/kernel-build](../review/kernel-build.md#procedure) describes.
-3. Generate the patches into a new, empty directory, so that no file from
-   an earlier run gets sent. `--base` records the base commit, so that
-   reviewers and CI know what the patches apply to:
+3. Generate the patches into a new, empty directory under $SCRATCH,
+   `$SCRATCH/<topic>/post<N>/mails` for version N, so that no file from an
+   earlier run gets sent and no mail file lands in the tree:
 
    ```
-   git format-patch -v N --cover-letter --base=<base> -o <dir> <base>..HEAD  # standard, v2 on
-   git format-patch -n --base=<base> -o <dir> <base>..HEAD                   # cover, never -v
+   git format-patch -v N --cover-letter -o <dir> <base>..HEAD  # standard, v2 on
+   git format-patch -n -o <dir> <base>..HEAD                   # cover, never -v
    ```
 
 4. Run checkpatch on the generated patches
@@ -98,13 +98,14 @@
 3. If the previous version depended on other patches, check whether they
    have merged
    ([submit/dependent-patchsets](../submit/dependent-patchsets.md#reposting)).
-4. Create the version's branch from the previous version's branch, and
-   rebase it onto the base branch, named by its branch name, if the base
-   moved:
+4. Create the version's branch from the previous version's branch, in a
+   new worktree under $WORKTREE_ROOT, so that the build and the posting
+   stay out of the publication tree, and rebase it onto the base branch,
+   named by its branch name, if the base moved:
 
    ```
-   git branch <branch>-v2 <branch>
-   git rebase <base> <branch>-v2
+   git -C <tree> worktree add -b <branch>-v2 $WORKTREE_ROOT/<topic>-post <branch>
+   git rebase <base>                  # in the worktree
    ```
 
    A conflict in that rebase is handled as
@@ -247,6 +248,11 @@ alone comes from a moved base and is not a change to the patch.
 ## Customization
 - `$SUBJECT_STYLE` picks the subject form, and `$TREES` the lists and
   people each tree copies.
+- A user who posts from a working tree of their own, not a publication
+  tree, can create the version's branch there instead of in a worktree.
+- For trees that want the base commit recorded, so that reviewers and CI
+  know what the patches apply to, an overlay adds `--base=<base>` to git
+  format-patch.
 - An overlay usually names the cover's leading word for `cover`, the trees
   that want vN notes below `---`, whether recipients come from
   get_maintainer.pl or from reading MAINTAINERS, and the public tree's push

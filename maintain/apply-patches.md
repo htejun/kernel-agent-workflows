@@ -32,6 +32,11 @@
   full and has exactly one Signed-off-by from $IDENTITY, plus the author's
   on a contributor patch, and the build passed, because a missing
   committer sign-off on a public branch violates the DCO.
+- The prose and width gates of the patches/ and style/ modules cover the
+  text the agent writes, such as added tags and a fix-up the user asked
+  for. A contributor's text is reviewed, never refilled or reworded, and
+  changes only as step 6 of [applying](#applying) allows, because it is
+  the contributor's and the thread reviewed it as posted.
 - Push the applied branches without a pause to confirm, because the apply
   instruction covers the push and the server rejects a push that doesn't
   fast-forward.
@@ -62,21 +67,27 @@
       was told about the mismatch
       ([Signed-off-by and author](#signed-off-by-and-author)).
 - [ ] The build of the target branch passed
-      ([review/kernel-build](../review/kernel-build.md#before-testing-posting-or-applying-a-code-change)).
+      ([review/kernel-build](../review/kernel-build.md#before-testing-posting-or-pushing-a-code-change)).
 
 ## Procedure
 ### Applying
 1. Fetch the whole thread ([mail/lore-thread](../mail/lore-thread.md#procedure))
    and summarize its reviews.
-2. Review the patches
-   ([review/patchset-review](../review/patchset-review.md#procedure)).
-3. Check for duplicates in other trees
+2. Choose the target branch
+   ([choosing the target branch](#choosing-the-target-branch)), with the
+   check of any Fixes tag and the stable Cc decision.
+3. Review the patches
+   ([review/patchset-review](../review/patchset-review.md#procedure)). Apply
+   them with `git am` onto a one-shot branch from the target branch, in a
+   worktree under $WORKTREE_ROOT, and review that range. A single patch is
+   reviewed as a batch of one. That copy serves only the review, and the
+   apply to the tree waits for the approval in step 5.
+4. Check for duplicates in other trees
    ([cross-tree duplicates](#cross-tree-duplicates)). If another tree took
    a patch, stop and tell the user. Never apply it.
-4. Choose the target branch
-   ([choosing the target branch](#choosing-the-target-branch)).
-5. Present the patch titles, the tags collected from the thread, a summary
-   of the reviews and the target branch. Wait for the user's approval.
+5. Present the patch titles, the tags collected from the thread, the Fixes
+   check and the stable Cc decision, a summary of the reviews and the
+   target branch. Wait for the user's approval.
 6. Make the changes the reviews call for, if the user wants them. A change too
    big to describe in the acknowledgment becomes a new version posted as a reply
    instead
@@ -164,9 +175,16 @@ acceptable, not even a textually identical one.
 Resolve branch names in the tree's own clone
 ([maintain/branch-model](../maintain/branch-model.md#finding-the-active-branch)).
 Never assume a target. Verify it.
-- With a Fixes tag, run `git -C <tree> branch --contains <fixed commit>`
-  and apply where the fixed commit lives: the fixes branch when mainline
-  has the commit, the devel branch when only that branch has it.
+- With a Fixes tag, first check that it names the commit that introduced
+  the bug, by blame on the buggy lines
+  ([patches/commit-tags](../patches/commit-tags.md#finding-the-commit-a-fix-fixes)),
+  and decide the stable Cc
+  ([patches/commit-tags](../patches/commit-tags.md#deciding-on-a-stable-cc)),
+  because a contributor's tag can name a later refactor. Step 5 presents
+  both.
+- Then run `git -C <tree> branch --contains <fixed commit>` and apply
+  where the fixed commit lives: the fixes branch when mainline has the
+  commit, the devel branch when only that branch has it.
 - Without a Fixes tag, the patch is development and goes to the devel
   branch.
 - A patch that changes only selftests goes to the branch the tree's
@@ -200,11 +218,16 @@ Never assume a target. Verify it.
 - It is prepared right after the push.
 - It threads on the original posting
   ([mail/thread-roots](../mail/thread-roots.md#procedure)).
-- Its recipients are the original posting's To and Cc plus everyone who
-  replied in the thread, because it answers the whole thread while
-  threading on the original. Nobody is dropped. The reviewer being
-  addressed may go in To.
-- Its wording, including how it reports changes made while applying, is in
+- Its recipients are the original posting's From, To and Cc, everyone who
+  replied in the thread and every address their replies added, because it
+  answers the whole thread while threading on the original. Nobody is
+  dropped, and nobody else is added: a tree's standing Cc list for
+  postings, such as the one in $TREES, doesn't reach the acknowledgment.
+  The reviewer being addressed may go in To.
+- A tag that arrived after the push is not in the commits. Tell the user,
+  and leave it out of the acknowledgment.
+- Its wording, including how it reports the tags collected from the thread
+  and other changes made while applying, is in
   [mail/mail-replies](../mail/mail-replies.md#acknowledgments-of-applied-patches).
 
 ### A wrong apply

@@ -28,7 +28,7 @@ on.
 ## [GATE] Checklist
 ### Before deploying BPF changes to a test machine
 - [ ] The kernel and every tool the change touches passed the gate in
-      [review/kernel-build](../review/kernel-build.md#before-testing-posting-or-applying-a-code-change).
+      [review/kernel-build](../review/kernel-build.md#before-testing-posting-or-pushing-a-code-change).
 - [ ] The BPF tools and programs were rebuilt clean after the kernel. This
       adds a case to the clean builds of
       [review/kernel-build](../review/kernel-build.md#procedure) step 8,

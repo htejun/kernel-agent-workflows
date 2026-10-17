@@ -11,6 +11,9 @@
   own clone in $TREES, never from memory or from a same-named branch in a
   scratch tree or worktree, because the rc changes every week and a stale
   copy of a branch hides work that already landed.
+- Whenever $TREE_STATE is read, for any task, report each anomaly it shows
+  in one line before going on ([anomalies](#anomalies)), because nothing
+  else tells the user about unsent fixes late in the cycle.
 
 ## Procedure
 ### Finding the active branch
@@ -100,8 +103,7 @@ came from kernel.org and every git command succeeded, and exits 1 when
 anything failed. `--json` prints the full report.
 
 ### Anomalies
-When reading the state, mention each anomaly in one line before going on,
-once per session:
+Report each one in one line, once per session:
 - `stale_count` above 0: "<tree> has <N> unsent fixes older than a week in
   <fixes branch>."
 - `kernel.rc` at 6 or later and any `unsent_count` above 0: "rc<N>, <tree>

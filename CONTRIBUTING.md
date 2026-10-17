@@ -5,9 +5,9 @@ or an agent makes it.
 
 ## Everything here is generic
 
-This repository is public. Every file and every commit must be useful to any
-kernel developer and must say nothing about a particular person, machine,
-organization or piece of private work. Never add:
+This repository is meant to be public. Every file and every commit must be
+useful to any kernel developer and must say nothing about a particular
+person, machine, organization or piece of private work. Never add:
 
 - names of people, including in incidents, examples and credits
 - email addresses, except public mailing lists and reserved example
@@ -37,10 +37,10 @@ before committing.
 
 ## Always-on rules
 
-- kernel-agent-workflows is generic, because it is public: no names of
-  people, addresses, hosts, paths, accounts, credentials, machine details,
-  employers, private mail, unposted work or dates. Personal facts go to a
-  profile or an overlay ([details](#everything-here-is-generic)).
+- kernel-agent-workflows is generic, because it is meant to be public: no
+  names of people, addresses, hosts, paths, accounts, credentials, machine
+  details, employers, private mail, unposted work or dates. Personal facts
+  go to a profile or an overlay ([details](#everything-here-is-generic)).
 - Before every commit to kernel-agent-workflows, run its tools/check-leaks
   and tools/check-modules, and read the diff for private facts, because the
   tools miss paraphrases.

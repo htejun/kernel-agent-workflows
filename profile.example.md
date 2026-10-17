@@ -83,9 +83,9 @@ Parameters of modules you don't enable can stay unset even when required.
 
 ## Paths and machines
 
-- `$SCRATCH`: required. Directory for working files such as drafts,
-  mailboxes and logs, with a subdirectory per topic, such as
-  `~/scratch/<topic>/`.
+- `$SCRATCH`: required. Base directory for working files such as drafts,
+  mailboxes and logs, such as `~/scratch`. Modules add a subdirectory per
+  topic: `$SCRATCH/<topic>/`.
 - `$WORKTREE_ROOT`: required. Directory where a task the user hands off gets
   its own git worktree, such as `~/src`.
 - `$PUBLICATION_TREES`: default none. The clones the user publishes from,

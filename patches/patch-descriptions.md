@@ -213,7 +213,7 @@ argument the reviewer needs.
   opened with the new kernel interface and its poll loop. The accepted
   version opened with what the user gains: no periodic polling, and an
   error report that aborts the run the moment it lands.
-- Describing a symptom and the code. A patch adding a callback took six
+- Describing a symptom and the code. A patch adding a callback took several
   review rounds to arrive at the missing capability instead of one
   consumer's symptom, and at properties instead of procedure, with nothing
   the code already shows.

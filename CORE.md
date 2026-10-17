@@ -16,10 +16,10 @@ mechanics, work the mechanics out instead of stopping.
 
 ## [When editing kernel-agent-workflows](CONTRIBUTING.md)
 
-- kernel-agent-workflows is generic, because it is public: no names of people,
-  addresses, hosts, paths, accounts, credentials, machine details, employers,
-  private mail, unposted work or dates. Personal facts go to a profile or an
-  overlay ([details](CONTRIBUTING.md#everything-here-is-generic)).
+- kernel-agent-workflows is generic, because it is meant to be public: no names
+  of people, addresses, hosts, paths, accounts, credentials, machine details,
+  employers, private mail, unposted work or dates. Personal facts go to a
+  profile or an overlay ([details](CONTRIBUTING.md#everything-here-is-generic)).
 - Before every commit to kernel-agent-workflows, run its tools/check-leaks and
   tools/check-modules, and read the diff for private facts, because the tools
   miss paraphrases.
@@ -235,7 +235,7 @@ mechanics, work the mechanics out instead of stopping.
 
 ## [review/kernel-build](review/kernel-build.md)
 
-- [GATE] Before testing, posting or applying a code change: build it with
+- [GATE] Before testing, posting or pushing a code change: build it with
   `$BUILD`, the kernel first and then every tool and selftest it touches, and
   report every warning and error, because a change nobody built breaks the build
   for everyone who pulls it.
@@ -367,6 +367,11 @@ mechanics, work the mechanics out instead of stopping.
   and has exactly one Signed-off-by from $IDENTITY, plus the author's on a
   contributor patch, and the build passed, because a missing committer sign-off
   on a public branch violates the DCO.
+- The prose and width gates of the patches/ and style/ modules cover the text
+  the agent writes, such as added tags and a fix-up the user asked for. A
+  contributor's text is reviewed, never refilled or reworded, and changes only
+  as step 6 of [applying](maintain/apply-patches.md#applying) allows, because it
+  is the contributor's and the thread reviewed it as posted.
 - Push the applied branches without a pause to confirm, because the apply
   instruction covers the push and the server rejects a push that doesn't
   fast-forward.
@@ -380,6 +385,9 @@ mechanics, work the mechanics out instead of stopping.
   clone in $TREES, never from memory or from a same-named branch in a scratch
   tree or worktree, because the rc changes every week and a stale copy of a
   branch hides work that already landed.
+- Whenever $TREE_STATE is read, for any task, report each anomaly it shows in
+  one line before going on ([anomalies](maintain/branch-model.md#anomalies)),
+  because nothing else tells the user about unsent fixes late in the cycle.
 
 ## [maintain/merges](maintain/merges.md)
 
@@ -407,9 +415,11 @@ mechanics, work the mechanics out instead of stopping.
 - Reach a test machine through the mechanism `$MACHINES` names for it and the
   capability, and ask the user when it names none, because an improvised path
   can act on the wrong machine or lose the state the named one preserves.
-- Read access credentials from a secret store or a file at the moment of use.
-  Never put them on a command line, in a script or in an overlay, because
-  command lines show up in process lists and transcripts, and files get copied.
+- Read access credentials from a secret store or a file at the moment of use,
+  and never write them into a command, a script or an overlay, because
+  transcripts and files get copied. Prefer a tool's file or environment option
+  to a password argument, because command lines show up in process lists
+  ([pitfalls](test/machine-access.md#pitfalls)).
 
 ## [test/perf-comparison](test/perf-comparison.md)
 
@@ -425,15 +435,22 @@ mechanics, work the mechanics out instead of stopping.
 
 ## [test/remote-testing](test/remote-testing.md)
 
+- On a test machine that other people or other sessions may use, check for their
+  work before a kexec, reboot, power-off, deploy or a run that loads the
+  machine, and ask the user when something is running, because their test or
+  model-check batch is lost or skewed when the machine goes away or gets busy
+  under it ([shared machines](test/remote-testing.md#shared-machines)).
 - [GATE] Before a kexec, reboot, power cycle or kernel deploy: a console monitor
-  is running and capturing. A test kernel has also passed its build and boots by
-  kexec or a one-shot boot entry, never as the default, because only the console
-  records a boot or a crash that ssh can't reach, and a remote power cycle must
-  bring back a kernel that works.
+  is running and capturing, and nobody else's work runs on a shared machine. A
+  test kernel has also passed its build and boots by kexec or a one-shot boot
+  entry, never as the default, because only the console records a boot or a
+  crash that ssh can't reach, and a remote power cycle must bring back a kernel
+  that works.
 - [GATE] Before starting a test on a test machine: the console monitor is still
-  capturing, the machine runs the kernel just built with kdump loaded where it
-  has kdump, and the test is a script file, because a kexec can end the monitor
-  and drops the crash kernel, and results from a stale kernel prove nothing.
+  capturing, nobody else's work runs on a shared machine, the machine runs the
+  kernel just built with kdump loaded where it has kdump, and the test is a
+  script file, because a kexec can end the monitor and drops the crash kernel,
+  and results from a stale kernel prove nothing.
 - [GATE] Before reporting test results: the console was reviewed for the whole
   run, the logs were copied off the machine and show no setup failures and every
   positive marker, every planned iteration is accounted for, and machines that
@@ -563,8 +580,8 @@ mechanics, work the mechanics out instead of stopping.
   file is the commit.
 - [GATE] Before pushing or popping patches: the user asked for it or for the
   rework, edit, commit or sync it is part of, or it moves only the agent's new
-  patches or runs in the agent's scratch worktree, and `quilt diff -z` is empty,
-  because the user may be working on the stack.
+  patches or runs in a worktree the agent made for a check, and `quilt diff -z`
+  is empty, because the user may be working on the stack.
 - [GATE] Before resolving a reject: it came from a rework of the agent's own
   patches that the user asked for, and every line of every hunk is accounted
   for. Any other reject, offset or fuzz stops the work, because a hunk applied

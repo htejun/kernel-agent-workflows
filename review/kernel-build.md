@@ -8,7 +8,7 @@
   [core/waits-and-long-ops](../core/waits-and-long-ops.md)
 
 ## Always-on rules
-- [GATE] Before testing, posting or applying a code change: build it with
+- [GATE] Before testing, posting or pushing a code change: build it with
   `$BUILD`, the kernel first and then every tool and selftest it touches,
   and report every warning and error, because a change nobody built breaks
   the build for everyone who pulls it.
@@ -17,7 +17,7 @@
   compiler and options, and a stage built another way mixes the two.
 
 ## [GATE] Checklist
-### Before testing, posting or applying a code change
+### Before testing, posting or pushing a code change
 - [ ] The change was built, unless it only edits comments, documentation or
       patch descriptions.
 - [ ] The kernel built with `$BUILD` and the configuration options the
@@ -32,6 +32,9 @@
    change what the code does.
 2. Build in a working tree, never in a publication tree outside an apply
    ([core/safe-operations](../core/safe-operations.md#publication-trees)).
+   An apply builds the target branch once, after `git am` and before the
+   push ([maintain/apply-patches](../maintain/apply-patches.md#applying)),
+   not before the apply.
 3. In a fresh worktree, copy the .config from a built worktree of the same
    tree whose configuration has what the tools need, such as BTF and the
    subsystem's options. Never start from `make defconfig` when tools need

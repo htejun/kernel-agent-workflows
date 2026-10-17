@@ -4,7 +4,7 @@
   or for posting, the user asks for a review of a patch, a commit or a
   patchset, or review findings need verifying and fixing.
 - **Parameters:** `$REVIEW_PROMPTS`, `$FORMAL_MODEL`, `$SCRATCH`,
-  `$PLAN_DIR`
+  `$WORKTREE_ROOT`, `$PLAN_DIR`
 - **Depends on:** [core/validation-scope](../core/validation-scope.md),
   [core/evidence-discipline](../core/evidence-discipline.md),
   [core/waits-and-long-ops](../core/waits-and-long-ops.md),
@@ -51,7 +51,8 @@ and one reviewer also checking prose and style.
    changed behavior. Give each reviewer its own detached worktree
    ([tree state](#tree-state-for-each-reviewer)) and the
    [reviewer prompt](#reviewer-prompt). One of them also reviews
-   [prose and style](#prose-and-style) for every patch in the batch.
+   [prose and style](#prose-and-style) for every patch in the batch, and
+   the main agent runs the width audit over the batch.
 5. With `$FORMAL_MODEL` on, every reviewer names each protocol in the batch
    that meets the model check's
    [trigger](../review/formal-model-check.md#when-a-patchset-needs-a-model).
@@ -126,12 +127,14 @@ holds patches 1..N and nothing later, which is the tree a finding about
 patch N is judged against. review-core writes review-inline.txt and
 review-metadata.json into the current directory, so the worktree also
 keeps each reviewer's reports apart from the others and out of the kernel
-tree.
+tree. The worktrees go under $WORKTREE_ROOT, like every worktree of a task
+the agent is sent off to do
+([core/safe-operations](../core/safe-operations.md#always-on-rules)).
 
 ```
-git -C <tree> worktree add -d $SCRATCH/<topic>/review/<reviewer> <first sha>
+git -C <tree> worktree add -d $WORKTREE_ROOT/<topic>-review-<reviewer> <first sha>
 git checkout --detach <sha>        # in the worktree, before each commit
-git -C <tree> worktree remove $SCRATCH/<topic>/review/<reviewer>
+git -C <tree> worktree remove $WORKTREE_ROOT/<topic>-review-<reviewer>
 ```
 
 After each commit, the reviewer moves its two report files to
@@ -177,8 +180,9 @@ style presets:
 
 Column widths are not a reviewer's task, because the mechanical audit of
 [patches/line-widths](../patches/line-widths.md#auditing-a-patchset) checks
-them. Each finding takes the form `<patch> (<rule>) <quoted line> -> <fix>`, or
-the reviewer reports "clean".
+them. The main agent runs that audit over the batch in each round and
+reports its findings with the style findings. Each finding takes the form
+`<patch> (<rule>) <quoted line> -> <fix>`, or the reviewer reports "clean".
 
 ### Batches without code
 A batch of workflow documents, plans or other prose gets no kernel path
