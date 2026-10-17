@@ -11,7 +11,8 @@
   [patches/patch-descriptions](../patches/patch-descriptions.md),
   [patches/comments-kerneldoc](../patches/comments-kerneldoc.md),
   [patches/cover-letters](../patches/cover-letters.md),
-  [review/formal-model-check](../review/formal-model-check.md)
+  [review/formal-model-check](../review/formal-model-check.md),
+  [code/kernel-idioms](../code/kernel-idioms.md)
 
 Parallel sub-agents review a batch adversarially, with review-prompts
 (https://github.com/masoncl/review-prompts) as the engine for each commit
@@ -161,8 +162,9 @@ state, with its actors and shared words.          (only with $FORMAL_MODEL on)
 One reviewer checks every patch in the batch against
 [patches/patch-descriptions](../patches/patch-descriptions.md),
 [patches/comments-kerneldoc](../patches/comments-kerneldoc.md),
-[patches/cover-letters](../patches/cover-letters.md) and the enabled style and
-code modules:
+[patches/cover-letters](../patches/cover-letters.md),
+[code/kernel-idioms](../code/kernel-idioms.md#changing-code) and the enabled
+style presets:
 
 - the content and length of the description, and word choice
 - the call-out of a tightened or loosened validation rule that

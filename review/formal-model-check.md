@@ -8,7 +8,9 @@
   `$SCRATCH`
 - **Depends on:** [core/evidence-discipline](../core/evidence-discipline.md),
   [core/validation-scope](../core/validation-scope.md),
-  [core/waits-and-long-ops](../core/waits-and-long-ops.md)
+  [core/waits-and-long-ops](../core/waits-and-long-ops.md),
+  [patches/patch-descriptions](../patches/patch-descriptions.md),
+  [patches/cover-letters](../patches/cover-letters.md)
 
 The agent translates the protocol's C into a PlusCal model, and TLC checks
 every interleaving. Memory-ordering claims go to herd7 litmus tests instead,
@@ -171,8 +173,10 @@ A patchset needs a model when any of these holds:
   against the kernel. Typical shapes are enable or disable counting paired
   against the state the disable path can see, refcount handoff, ownership
   or claim-flag queues, state machines with transitions from more than one
-  context, lockless single-word schemes justified by step order ("A can't
-  observe X because B checks Y first"), and generation or rollover schemes.
+  context, lockless single-word schemes
+  ([code/kernel-idioms](../code/kernel-idioms.md#lockless-is-for-one-word))
+  justified by step order ("A can't observe X because B checks Y first"),
+  and generation or rollover schemes.
 - A reviewer reports an interleaving it can't settle by reading, or two
   reviewers disagree about one.
 - The user asks for a model.

@@ -82,6 +82,10 @@ argument the reviewer needs.
 - Generic infrastructure leads with the general capability and the class
   of users, cites the existing precedent it follows, and brings in the
   driving consumer as an example.
+- An addition is stated as the addition, not as the absence it fills:
+  "Add a per-CPU count of dropped events to debugfs", not "Nothing records
+  how many events are dropped, so add a per-CPU count". Keep the problem
+  sentence only when the reader wouldn't otherwise see the need.
 - A patch that replaces a mechanism first says what is wrong with it as a
   design, such as an unusual dependency that is brittle and gets in the way
   of future changes, and only then the change it would break. The breaking
@@ -152,21 +156,21 @@ argument the reviewer needs.
   works, because the reader knows its locking and its macros. The bug
   exists, so no "could potentially".
 - Preparation or mechanical patch, such as a rename, a move, a helper
-  factored out, a wrapper inlined or a reorganization: open with the change
-  itself, the new functions and what they came out of, and one clause on
-  what they are for, then "No functional change." The motivation collapses
+  factored out, a wrapper inlined or a reorganization: about four lines
+  that open with the change itself, in the form "Factor X out of Y so that
+  Z. No functional change." Name the new functions and what they came out
+  of, and give one clause on what they are for. The motivation collapses
   to a phrase such as "to prepare for X". Never a step-by-step of what the
   next patch does with them, because that patch's description says so. No
   placement detail such as "next to X", and no quoted prose phrases. The
   shape:
 
   ```
-  foo: Move foo_has_bar() to foo.h
+  foo: Factor out foo_sync_cpu()
 
-  foo_baz.c reads foo->nr_bars directly in two places to test whether a foo
-  has bars. foo.c already has a matching helper, foo_has_bar(). Move it to
-  foo.h as static inline and use it instead. This is to prepare for moving
-  foo->nr_bars. No functional change.
+  Factor foo_sync_cpu() out of foo_sync_all() so that the CPU hotplug
+  callbacks can sync and report one CPU without walking every CPU. No
+  functional change.
   ```
 
 - "No functional change", spelled out and never abbreviated, is only for

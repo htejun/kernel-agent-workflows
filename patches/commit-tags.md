@@ -5,7 +5,6 @@
   in tags, or referring to a commit in prose.
 - **Parameters:** `$TREES`
 - **Depends on:** [core/git-safety](../core/git-safety.md),
-  [maintain/apply-patches](../maintain/apply-patches.md),
   [mail/mail-replies](../mail/mail-replies.md)
 
 ## Always-on rules

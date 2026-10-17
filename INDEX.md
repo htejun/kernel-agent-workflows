@@ -203,3 +203,56 @@ Crash analysis, bug report triage and event tracing.
   scripts, debug probe stubs or an in-kernel trace ring to see what the kernel
   does, including hunting a rare event in a high-rate stream where the history
   before the event matters.
+
+## Kernel code
+
+Kernel C idioms that are easy to get wrong.
+
+- [code/kernel-idioms](code/kernel-idioms.md): writing, changing or reviewing
+  kernel C code, including restructuring branches, changing a function
+  signature, adding a WARN or a defensive check, sharing data between CPUs
+  without a lock, counting the users of a static key, using scoped guards with
+  RCU, iterating the bits of a u64, embedding a struct that ends in a flexible
+  array, organizing headers, or relying on CPU hotplug state around suspend and
+  hibernation.
+
+## Style presets
+
+Opinionated writing and coding style presets. Opt-in.
+
+- [style/coding-style](style/coding-style.md): writing, changing or reviewing C
+  code or code comments, or deciding how to split a code change into patches.
+- [style/voice](style/voice.md): writing or revising any prose for the user or
+  under the user's name: a patch description, a code comment or kerneldoc, a
+  cover letter, a mail, a pull request body or comment, a plan or a doc, or a
+  reply in chat.
+
+## Quilt
+
+Managing patch stacks with quilt on top of git. Opt-in.
+
+- [quilt/quilt-on-git](quilt/quilt-on-git.md): `$PATCH_MGMT` is `quilt` and a
+  task creates, edits, refreshes, splits or reorders quilt patches, pushes or
+  pops the stack, commits the branch that holds it, or turns the patches into
+  git commits or mail for a review, a posting, a pull request or an apply.
+
+## Subsystems
+
+Subsystem-specific rules and testing. Opt-in.
+
+- [subsys/bpf](subsys/bpf.md): writing, reviewing or debugging BPF programs or
+  their userspace loaders, such as struct_ops programs, SEC("syscall") programs,
+  kptrs, arenas and BPF locks, or when a program fails to load, exceeds the
+  verifier's instruction or stack limit, or needs veristat.
+- [subsys/sched-ext](subsys/sched-ext.md): changing sched_ext in the kernel
+  (kernel/sched/ext, include/linux/sched/ext.h, tools/sched_ext and its
+  selftests) or a BPF scheduler in the scx repository, testing, tracing or
+  debugging a sched_ext scheduler, or reviewing such a change.
+
+## Agent notes
+
+Quirks of specific agent harnesses. Opt-in: enable the ones you use.
+
+- [agents/claude](agents/claude.md): working inside the Claude Code agent
+  harness.
+- [agents/codex](agents/codex.md): working inside the Codex agent harness.

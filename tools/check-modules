@@ -70,6 +70,8 @@ AREAS = [
 ]
 AREA_DIRS = [a[0] for a in AREAS]
 OPTIN = {a[0] for a in AREAS if a[2]}
+# areas $ROLE turns off for contributors; other modules can't depend on them
+ROLE_GATED = {'maintain'}
 SECTIONS = ['Always-on rules', '[GATE] Checklist', 'Procedure', 'Reference',
             'Pitfalls', 'Customization']
 FIELDS = ['Load when', 'Parameters', 'Depends on']
@@ -520,6 +522,9 @@ def check_tree(files, write, strict):
                 report(mod['path'], n, f'depends on missing module {dest}')
             elif mod['area'] not in OPTIN and dest.split('/')[0] in OPTIN:
                 report(mod['path'], n, f'a default module cannot depend on opt-in {dest}')
+            elif mod['area'] not in ROLE_GATED and dest.split('/')[0] in ROLE_GATED:
+                report(mod['path'], n, f'{dest} is off for some roles; mention it in '
+                       'the text instead of depending on it')
 
     contrib_rules = []
     for name, _, body in docs['CONTRIBUTING.md'].sections() if 'CONTRIBUTING.md' in docs else []:

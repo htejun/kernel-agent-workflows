@@ -11,8 +11,9 @@
 
 ## Always-on rules
 - [GATE] Before a commit or amend: $COMMIT_WORD is in the user's
-  instruction for the task, or the commit is a step of an instructed apply
-  or a merge whose message the user confirmed, because the user decides
+  instruction for the task, or the commit is a step of an instructed apply,
+  of a sync after an apply the user asked for, or of a merge whose message
+  the user confirmed, because the user decides
   what enters history. $COMMIT_WORD never authorizes applying patches to a
   publication tree.
 - [GATE] Before a branch-structural operation: the user instructed this
@@ -39,6 +40,7 @@
 - [ ] One of these authorizes it: $COMMIT_WORD in the user's instruction
       for the task, an apply the user instructed of which the commit is a
       step ([maintain/apply-patches](../maintain/apply-patches.md#applying)),
+      a sync of a working branch after an apply that the user asked for,
       or a merge commit whose message the user confirmed
       ([maintain/merges](../maintain/merges.md#making-a-merge)). Never
       commit or amend otherwise.
@@ -207,6 +209,14 @@ require it:
   the commit behind the marked region and was justified by a byte match with
   an earlier adapted copy of the same patches. That copy's misses came
   along with it. The per-commit trace comes first, every time.
+- A rebase named a branch that another worktree had checked out. Git
+  refused it ("already used by worktree"), and the amend that followed
+  landed on the wrong branch. Rebase a branch only in the worktree that has
+  it checked out, as `git rebase <upstream>` with no branch argument, and
+  check `git branch --show-current` after a refused rebase.
+  `git reflog show <branch>` holds the earlier tip of a branch that took a
+  stray amend, and a reset to it is a destructive operation
+  ([core/safe-operations](../core/safe-operations.md#before-a-destructive-or-forced-operation)).
 
 ## Customization
 - `$COMMIT_WORD` sets the word that authorizes a commit.

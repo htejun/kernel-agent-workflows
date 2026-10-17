@@ -76,7 +76,11 @@ ring, and a check at the moment of the event dumps every CPU's ring.
    [round report](#round-report).
 10. Rebuild with the next probes and repeat from step 8. Each round should
     at least halve the gap. Stop when
-    [declare a root cause](#declare-a-root-cause) holds.
+    [declare a root cause](#declare-a-root-cause) holds. Read the earlier
+    rounds' scripts and dumps before writing a new script, and carry their
+    working instrumentation forward: add the new probes to it, or run a new
+    tracer next to the old ones, never in place of one that works, because
+    the live hypotheses still need what the earlier probes record.
 11. If the user keeps an investigation log, add one entry per round: the
     dump excerpt, the dead hypotheses, the next probe and why. End the log
     with the debug commits inlined verbatim, so that they survive branch

@@ -174,7 +174,9 @@ Injections may change when a path runs, never what it does. Allowed:
 
 Never allowed: reassigning tasks or fields, skipping validation checks,
 flipping a branch, or setting a field the way the real code never sets it. A
-reproducer that needs one is invalid, and the claim is suspect.
+reproducer that needs one is invalid, and the claim is suspect. When
+widening the window can't trigger a race, say that the fix is preventive
+instead of fabricating a trigger.
 
 Signals that count: an oops, a lockdep splat, a `WARN_ON_ONCE()`, a KCSAN
 or KASAN report, a refcount asymmetry counter such as 0 of 3 release calls

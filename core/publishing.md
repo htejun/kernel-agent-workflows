@@ -108,6 +108,12 @@ approves that command string, not the prose around it.
   expecting a permission prompt to stop it, and the prompt allowed it.
 - Pull request branches were force-pushed after a CI failure report,
   without asking.
+- A push was reported as the agent's own success when a hook had refused
+  both of its attempts and the user had pushed by hand. The remote-tracking
+  reflog's "update by push" entry doesn't say whose push it was. Read the
+  remote's tip with `git ls-remote` in the same shell call as the push and
+  compare it with the commit pushed. When the outcome is still unclear,
+  ask the user before reporting it.
 
 ## Customization
 - `$SEND_TOKEN` sets the approval word.

@@ -46,9 +46,10 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
 ## [core/git-safety](core/git-safety.md)
 
 - [GATE] Before a commit or amend: $COMMIT_WORD is in the user's instruction for
-  the task, or the commit is a step of an instructed apply or a merge whose
-  message the user confirmed, because the user decides what enters history.
-  $COMMIT_WORD never authorizes applying patches to a publication tree.
+  the task, or the commit is a step of an instructed apply, of a sync after an
+  apply the user asked for, or of a merge whose message the user confirmed,
+  because the user decides what enters history. $COMMIT_WORD never authorizes
+  applying patches to a publication tree.
 - [GATE] Before a branch-structural operation: the user instructed this
   operation itself, even when a workflow seems to need it, because it rewrites
   or mixes branches that other people and trees build on.
@@ -468,3 +469,122 @@ collides with a task's mechanics, work the mechanics out instead of stopping.
   running kernel and sees its arguments, that no output waits for program exit,
   and that ring writers can't collide, because each failure loses or corrupts
   data without an error.
+
+## [code/kernel-idioms](code/kernel-idioms.md)
+
+- Work out the diff a code change should produce before editing, and before
+  committing check that every hunk serves the change: no moved or reordered
+  code, no brace changes on lines the change doesn't otherwise touch, no dropped
+  debug messages and no collateral edits, because reviewers have to account for
+  every hunk and an unrelated one hides in the history
+  ([details](code/kernel-idioms.md#changing-code)).
+- Add a defensive check only for a concrete failure scenario, and flag every
+  deviation from a diff being ported, because a check for a case the call path
+  already rules out hides where validation happens, and a silent deviation never
+  gets reviewed ([details](code/kernel-idioms.md#defensive-code-and-warns)).
+- A WARN that a legitimate path can reach is a bug, however rare the path. Fix
+  it in the change that makes it reachable, because a WARN asserts an invariant,
+  and one that fires on a valid path reports a bug that isn't there
+  ([details](code/kernel-idioms.md#defensive-code-and-warns)).
+- [GATE] Before adding a lockless fast path: the shared state is one word unless
+  the user approved the scheme as a design question, the writer releases unless
+  the reader is explicitly advisory, the reader acquires or runs on the writer's
+  CPU, and the access is marked for KCSAN and can't tear, because READ_ONCE()
+  and WRITE_ONCE() constrain only the compiler, and an ordering argument across
+  words that holds on x86 fails on weakly ordered CPUs.
+- [GATE] Before committing a signature change: every call site and every
+  declaration was updated, in this commit and in each later commit of the
+  patchset, because a stale caller breaks the build of that commit and bisection
+  with it.
+
+## [style/coding-style](style/coding-style.md) (opt-in)
+
+- Keep logic in larger functions. A new helper needs two or more callers, a
+  contract of its own or a config-stub boundary, because a chain of
+  single-caller helpers makes the reader jump around to follow one story
+  ([details](style/coding-style.md#functions)).
+- Settle where a mechanism lives, which static key switches its hot path and
+  what its names are before the first draft, because each of them moved during
+  review costs another round
+  ([details](style/coding-style.md#home-static-key-and-names)).
+
+## [style/voice](style/voice.md) (opt-in)
+
+- Say the concrete thing once, in plain subject-verb-object sentences with the
+  real actor: the conclusion, a one-line reason, stop, because a point the
+  reader has to derive or reread gets missed
+  ([details](style/voice.md#sentences)).
+- Use the words a kernel comment on the subject would use, never coined terms,
+  creative verbs, vapid wrappers or nicknames for code paths, because the reader
+  has to guess what an unusual word means ([details](style/voice.md#words)).
+- Leave out every word that doesn't change what the reader understands, show-off
+  tone included, because each one stands between the reader and the point
+  ([details](style/voice.md#what-to-leave-out)).
+- An edit the user makes to the agent's prose counts as a correction, said or
+  not, because otherwise the user makes the same edit again
+  ([details](style/voice.md#after-an-edit-or-a-critique)).
+- [GATE] Before showing prose: no paragraph runs past 8 lines, and the text has
+  the length its kind calls for, because a longer paragraph can't be taken in at
+  a glance and the reader skims past the point.
+- [GATE] Before committing a patch: the prose it adds has no semicolon chains or
+  dash joins, one space after each period, no coined terms, and "block" or
+  "wait" only for paths that sleep, because these slip into drafts unnoticed and
+  each one a reviewer finds costs another round.
+
+## [quilt/quilt-on-git](quilt/quilt-on-git.md) (opt-in)
+
+- [GATE] Before editing a source file in a quilt-on-git tree: `quilt top` names
+  the patch the edit belongs to, and `quilt add` put the file in it before its
+  first change, because quilt diffs against the copy `quilt add` saves.
+- [GATE] Before recording a patch: the gates the enabled modules set before
+  committing a patch passed on it, and only `quilt refresh` wrote its diff and
+  diffstat ([patch files](quilt/quilt-on-git.md#patch-files)), because the patch
+  file is the commit.
+- [GATE] Before pushing or popping patches: the user asked for it or for the
+  rework, edit, commit or sync it is part of, or it moves only the agent's new
+  patches or runs in the agent's scratch worktree, and `quilt diff -z` is empty,
+  because the user may be working on the stack.
+- [GATE] Before resolving a reject: it came from a rework of the agent's own
+  patches that the user asked for, and every line of every hunk is accounted
+  for. Any other reject, offset or fuzz stops the work, because a hunk applied
+  from memory or by fuzz loses a change without an error.
+- [GATE] Before changing git state in a quilt-on-git tree: a commit, pull,
+  merge, rebase or checkout needs every patch popped and `git status` clean,
+  except for the `patches/` and `$PLAN_DIR` changes a commit records as a new
+  commit, never an amend, because git tracks only the base there.
+- Change the agent's own patches, those of the user's working stack, only
+  through quilt, never by a rebase, cherry-pick or replay of git commits made
+  from them, because the next import discards a change made in git.
+
+## [subsys/bpf](subsys/bpf.md) (opt-in)
+
+- Judge a change to a BPF program's verifier cost, its instruction count or its
+  stack size, only by loading the real object on the target kernel with the
+  loader's settings, never from the source or a standalone reproduction, because
+  state pruning and load-time constants decide the cost, and those proxies have
+  mispredicted it repeatedly.
+- [GATE] Before deploying BPF changes to a test machine: the BPF tools and
+  programs were rebuilt clean after the kernel, the build and console gates
+  passed, and the verifier log of any failed load was read, because stale
+  generated headers and skeletons fail in code the change never touched.
+
+## [subsys/sched-ext](subsys/sched-ext.md) (opt-in)
+
+- A patch that changes `struct sched_ext_ops` adds its compat handling to
+  tools/sched_ext/include/scx in the same patch, because schedulers built
+  against the new headers must still load on older kernels
+  ([details](subsys/sched-ext.md#interface-changes)).
+- Decode task and enqueue flags, `p->flags`, `p->scx.flags` and `enq_flags`,
+  with a decoder script, never by hand, and write one from the flag definitions
+  in the tree's headers when none ships, because one misread bit sends the
+  analysis after the wrong state.
+- [GATE] Before a commit of Rust code: `cargo fmt` ran, `cargo build` passed,
+  the branch isn't main, and the user saw `git diff --cached` and confirmed it,
+  because CI rejects an unformatted or unbuildable commit and a stray staged
+  file goes out with the pull request.
+
+## [agents/claude](agents/claude.md) (opt-in)
+
+- Write content the agent authors with the Edit and Write tools, never through a
+  heredoc or shell redirection, because the tools show the exact change and
+  track the file's state. Redirecting a command's own output to a file is fine.
