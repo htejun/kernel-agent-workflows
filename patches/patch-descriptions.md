@@ -113,11 +113,13 @@ argument the reviewer needs.
 ### What stays out
 - Diff narration: API walkthroughs ("X_init() does foo, X_next() does
   bar"), algorithm narration, code walks that name each function and branch
-  an event passes through, quoted macro call forms, a paraphrase of
-  kerneldoc the diff adds, lists of renamed identifiers, enumerated hunks
-  and field-by-field translations. "An invalid request is caught and
-  discarded later in the submission path" carries the content. Name a
-  function only when the name is the point.
+  an event passes through, quoted macro call forms, a paraphrase of the
+  kerneldoc or code the diff adds (such as an ordering requirement and its
+  reason, why an interface is asynchronous, or which lock protects a
+  field), lists of renamed identifiers, enumerated hunks and field-by-field
+  translations. "An invalid request is caught and discarded later in the
+  submission path" carries the content. Name a function only when the name
+  is the point.
 - Reassurance and defense: what still works after the fix, what is
   unchanged unless the reader would otherwise wonder, leak audits for
   removed code when ownership is evident, and correctness arguments and
