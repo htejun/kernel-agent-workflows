@@ -131,6 +131,10 @@ A finished draft becomes a mail file as
   or defers to an expert on. "I'll proceed as advised" is the shape.
 - Keep the user's qualifications about recalled behavior and its precision,
   such as "IIRC" or "roughly".
+- State the user's judgment in the user's terms, and attach no consequence
+  the user didn't give. When the user calls duplicated code brittle, the
+  draft says brittle, not that the copy will go stale when the original
+  changes, because the user may not expect the original to change.
 - When the user's edits narrow a reply, keep that scope in later drafts.
   Don't bring back removed findings about companion patches or nearby API
   policy unless asked.
