@@ -75,16 +75,29 @@ and wins where they differ.
   not `if (!cond) continue;` followed by `do_x();`. An early `continue` or
   `return` is for a body of several statements.
 - An if/else whose branches are single statements never gets braces.
-- Use guard() and scoped_guard() instead of manual lock and unlock pairs
-  wherever the critical section allows, such as `guard(rq_lock_irqsave)(rq)`,
-  `guard(preempt)()` and `scoped_guard (sched_change, p, flags)` in the
-  scheduler. They remove flag locals, goto-unlock labels and the unlocks
-  repeated before early returns. Use guard() when an existing block scope
-  matches the lock's coverage and scoped_guard() when guard() would hold
-  the lock past where it is needed. Manual pairs stay only where the unlock
-  point isn't scope-shaped, such as lock dances and conditional ownership
-  transfer. What a guard implies for RCU is in
+- A blank line separates an if block from an unrelated statement after it,
+  because the gap marks where one step ends.
+- New code uses scope-based cleanup, such as guard() and scoped_guard()
+  instead of manual lock and unlock pairs, wherever the critical section
+  allows: `guard(rq_lock_irqsave)(rq)`, `guard(preempt)()` and
+  `scoped_guard (sched_change, p, flags)` in the scheduler. They remove
+  flag locals, goto-unlock labels and the unlocks repeated before early
+  returns. Use guard() when an existing block scope matches the lock's
+  coverage and scoped_guard() when guard() would hold the lock past where
+  it is needed. Manual pairs stay only where the unlock point isn't
+  scope-shaped, such as lock dances and conditional ownership transfer.
+  What a guard implies for RCU is in
   [code/kernel-idioms](../code/kernel-idioms.md#scoped-guards-and-rcu).
+- A lock and unlock helper pair with only a couple of callers is called
+  directly, with no guard class defined on top of it, because a guard class
+  is one more definition to look up, and so few call sites don't save
+  enough to pay for it.
+- A function may mix guard() or scoped_guard() with goto, against the
+  advice in include/linux/cleanup.h and the review prompts that repeat it,
+  and reviews don't report the mix, because a goto out of a guard's scope
+  runs the unlock like any other exit. A goto that jumps forward past a
+  guard() into its scope is still a bug: gcc builds it silently and runs
+  the unlock on an uninitialized guard.
 - No bare `{ }` block to scope variables or to end a guard early. Use
   scoped_guard() for a scoped lock, declare the locals at the top of the
   function or of the branch block, or split out a helper if the block is
