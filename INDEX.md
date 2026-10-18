@@ -77,7 +77,7 @@ checkpatch, build checks, patchset review and formal model checks.
 - [review/formal-model-check](review/formal-model-check.md): `$FORMAL_MODEL` is
   `on` and a patchset adds or changes a protocol in which two or more concurrent
   contexts coordinate through shared state, or the user asks for a TLA+ model, a
-  TLC run or a herd7 litmus test.
+  model-checking run with tla-mctj or TLC, or a herd7 litmus test.
 - [review/kernel-build](review/kernel-build.md): building a kernel, in-tree
   tools or selftests to check a change, setting up the .config of a new
   worktree, or deciding whether a change needs a build.

@@ -105,7 +105,11 @@ Parameters of modules you don't enable can stay unset even when required.
 
 - `$FORMAL_MODEL`: default `off`. `on` makes patchset review check each
   multi-actor protocol over shared state with a TLA+ model. Needs Java and
-  the TLA+ tools.
+  the TLA+ tools, and tla-mctj unless `$MODEL_CHECKER` is `tlc`.
+- `$MODEL_CHECKER`: default `tla-mctj`. Which model checker runs the
+  checks. `tla-mctj` runs every cfg that tla-mctj accepts on it and the
+  rest on TLC, and `tlc` runs everything on TLC. tla-mctj is several times
+  faster than TLC but young and unproven.
 - `$MODEL_CHECK_HOST`: default `local`. Where long model-checking runs go:
   `local`, or a host from `$ROOT_OK_HOSTS` with more cores and memory.
 
